@@ -1,6 +1,7 @@
-import httpx
-from typing import Dict, Optional
 from datetime import datetime, timedelta
+from typing import Dict, Optional
+
+import httpx
 
 
 class SessionManager:

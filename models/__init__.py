@@ -1,6 +1,6 @@
 from .problem import Problem, ProblemCategory, ProblemList
-from .submission import Submission, SubmissionVerdict
 from .progress import Progress, UserProgress
+from .submission import Submission, SubmissionVerdict
 
 __all__ = [
     "Problem",

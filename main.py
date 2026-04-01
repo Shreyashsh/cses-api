@@ -1,16 +1,13 @@
 import os
 from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 
-from services import (
-    SessionManager,
-    ProblemFetcher,
-    SolutionSubmitter,
-    ProgressTracker,
-)
-from routers import auth, problems, submissions, progress
+from routers import auth, problems, progress, submissions
+from services import (ProblemFetcher, ProgressTracker, SessionManager,
+                      SolutionSubmitter)
 
 load_dotenv()
 

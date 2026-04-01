@@ -1,5 +1,5 @@
-from typing import Dict, List, Optional
 from datetime import datetime
+from typing import Dict, List, Optional
 
 from models.progress import Progress, UserProgress
 from models.submission import Submission

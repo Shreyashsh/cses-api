@@ -1,10 +1,11 @@
 import json
 import os
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Dict, List, Optional
-from bs4 import BeautifulSoup
+
 import httpx
+from bs4 import BeautifulSoup
 
 from models.problem import Problem, ProblemCategory
 

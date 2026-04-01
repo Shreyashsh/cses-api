@@ -1,5 +1,6 @@
-from fastapi import APIRouter, HTTPException, status
 from typing import List
+
+from fastapi import APIRouter, HTTPException, status
 
 from models.progress import UserProgress
 from models.submission import Submission

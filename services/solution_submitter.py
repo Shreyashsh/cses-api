@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import Optional
+
 from bs4 import BeautifulSoup
 
 from models.submission import Submission, SubmissionVerdict

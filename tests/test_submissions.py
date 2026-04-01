@@ -1,6 +1,8 @@
+from io import BytesIO
+
 import pytest
 from fastapi.testclient import TestClient
-from io import BytesIO
+
 from main import app
 
 
