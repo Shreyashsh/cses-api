@@ -6,8 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from routers import auth, problems, progress, submissions
-from services import (ProblemFetcher, ProgressTracker, SessionManager,
-                      SolutionSubmitter)
+from services import ProblemFetcher, ProgressTracker, SessionManager, SolutionSubmitter
 
 load_dotenv()
 

@@ -1,7 +1,6 @@
 from typing import Optional
 
-from fastapi import (APIRouter, Depends, File, Form, HTTPException, UploadFile,
-                     status)
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from models.submission import Submission
 
