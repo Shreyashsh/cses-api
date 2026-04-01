@@ -17,7 +17,7 @@ class SessionManager:
         """Initialize CSES session with credentials."""
         client = httpx.AsyncClient(
             base_url=self.base_url,
-            cookiejar=httpx.CookieJar(),
+            cookies=httpx.Cookies(),
             headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             },
