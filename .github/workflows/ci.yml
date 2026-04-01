@@ -30,8 +30,33 @@ jobs:
         run: |
           python -m pytest tests/ -v
 
-      - name: Lint with flake8 (optional)
+  code-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install linting tools
         run: |
-          pip install flake8
+          pip install flake8 pylint black isort
+
+      - name: Lint with flake8
+        run: |
           flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+
+      - name: Check code style with black
+        run: |
+          black --check .
+
+      - name: Check imports with isort
+        run: |
+          isort --check-only .
+
+      - name: Run pylint
+        run: |
+          pylint $(git ls-files '*.py') --exit-zero || true
         continue-on-error: true
