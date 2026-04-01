@@ -86,3 +86,47 @@ jobs:
         uses: coderabbitai/ai-pr-reviewer@latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-failure:
+    runs-on: ubuntu-latest
+    needs: [test, code-review, coderabbit]
+    if: failure()
+    permissions:
+      issues: write
+    steps:
+      - name: Create issue on workflow failure
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const workflowName = 'CI';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const commitSha = context.sha.substring(0, 7);
+            const branch = context.ref.replace('refs/heads/', '');
+            
+            const title = `🚨 CI Workflow Failed - ${new Date().toISOString().split('T')[0]}`;
+            const body = `## CI Workflow Failure
+
+            **Workflow:** ${workflowName}
+            **Branch:** ${branch}
+            **Commit:** ${commitSha}
+            **Triggered by:** ${{ github.actor }}
+            **Run URL:** ${runUrl}
+
+            ### Failed Jobs
+
+            ${{ toJSON(needs) }}
+
+            ---
+            *This issue was automatically created by GitHub Actions.*
+            `;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['bug', 'ci/cd']
+            });
+            
+            console.log('Issue created for workflow failure');
