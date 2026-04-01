@@ -6,7 +6,7 @@ API for fetching CSES problems, submitting solutions, and tracking progress.
 
 ```bash
 pip install -r requirements.txt
-uvicorn main:app --reload
+python -m uvicorn main:app --reload
 ```
 
 ## API Docs
