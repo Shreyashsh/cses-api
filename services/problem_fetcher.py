@@ -143,15 +143,26 @@ class ProblemFetcher:
 
         soup = BeautifulSoup(response.text, "html.parser")
         categories = []
+        seen = set()
 
-        for section in soup.find_all("div", class_="problemset-category"):
-            name_elem = section.find("h2")
-            if name_elem:
-                name = name_elem.get_text(strip=True)
-                slug = name.lower().replace(" ", "-")
-                problem_count = len(section.find_all("div", class_="task"))
-                categories.append(
-                    ProblemCategory(name=name, slug=slug, problem_count=problem_count)
-                )
+        # Categories are in h2 tags, count tasks after each h2
+        for h2 in soup.find_all("h2"):
+            name = h2.get_text(strip=True)
+            if name in seen:
+                continue
+            seen.add(name)
+
+            # Count unique problems in this category
+            problem_ids = set()
+            for elem in h2.find_next_siblings():
+                for link in elem.find_all("a", href=lambda x: x and "/problemset/task/" in str(x)):
+                    href = link["href"]
+                    problem_id = href.split("/")[-1]
+                    problem_ids.add(problem_id)
+
+            slug = name.lower().replace(" ", "-")
+            categories.append(
+                ProblemCategory(name=name, slug=slug, problem_count=len(problem_ids))
+            )
 
         return categories

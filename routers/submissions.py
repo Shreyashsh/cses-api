@@ -18,7 +18,7 @@ def set_services(manager, submitter, tracker):
     _progress_tracker = tracker
 
 
-def get_client_and_user(user_id: str):
+def get_client_and_user(user_id: str = "default"):
     if not _session_manager:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -38,9 +38,10 @@ def get_client_and_user(user_id: str):
 @router.post("/{problem_id}/submit", response_model=Submission)
 async def submit_solution(
     problem_id: str,
+    user_id: str = "default",
     language: str = Form("python3"),
     file: Optional[UploadFile] = File(None),
-    client=Depends(lambda: get_client_and_user("default")),
+    client=Depends(get_client_and_user),
 ):
     """Submit solution file to CSES."""
     if not file:

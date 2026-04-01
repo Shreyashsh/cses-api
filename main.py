@@ -68,3 +68,16 @@ async def root():
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
+
+
+@app.get("/debug/sessions")
+async def debug_sessions():
+    """Debug endpoint to see active sessions."""
+    if session_manager:
+        return {
+            "active_sessions": list(session_manager.sessions.keys()),
+            "session_expiry": {
+                k: v.isoformat() for k, v in session_manager.session_expiry.items()
+            },
+        }
+    return {"error": "Session manager not initialized"}

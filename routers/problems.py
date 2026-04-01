@@ -16,7 +16,7 @@ def set_services(manager, fetcher):
     _problem_fetcher = fetcher
 
 
-def get_client(user_id: str):
+def get_client(user_id: str = "default"):
     if not _session_manager:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -34,7 +34,7 @@ def get_client(user_id: str):
 
 
 @router.get("", response_model=List[ProblemCategory])
-async def list_categories(client=Depends(lambda: get_client("default"))):
+async def list_categories(user_id: str = "default", client=Depends(get_client)):
     """List all problem categories."""
     try:
         categories = await _problem_fetcher.fetch_categories(client)
@@ -47,7 +47,7 @@ async def list_categories(client=Depends(lambda: get_client("default"))):
 
 
 @router.get("/{category}", response_model=ProblemList)
-async def list_problems(category: str, client=Depends(lambda: get_client("default"))):
+async def list_problems(category: str, user_id: str = "default", client=Depends(get_client)):
     """List all problems in a category."""
     try:
         problems = await _problem_fetcher.fetch_category_problems(client, category)
@@ -63,7 +63,8 @@ async def list_problems(category: str, client=Depends(lambda: get_client("defaul
 async def get_problem(
     category: str,
     problem_id: str,
-    client=Depends(lambda: get_client("default")),
+    user_id: str = "default",
+    client=Depends(get_client),
 ):
     """Fetch problem details (cached)."""
     try:
