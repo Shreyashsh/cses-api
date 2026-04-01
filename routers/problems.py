@@ -47,7 +47,9 @@ async def list_categories(user_id: str = "default", client=Depends(get_client)):
 
 
 @router.get("/{category}", response_model=ProblemList)
-async def list_problems(category: str, user_id: str = "default", client=Depends(get_client)):
+async def list_problems(
+    category: str, user_id: str = "default", client=Depends(get_client)
+):
     """List all problems in a category."""
     try:
         problems = await _problem_fetcher.fetch_category_problems(client, category)

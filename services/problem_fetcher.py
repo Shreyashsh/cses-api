@@ -155,7 +155,9 @@ class ProblemFetcher:
             # Count unique problems in this category
             problem_ids = set()
             for elem in h2.find_next_siblings():
-                for link in elem.find_all("a", href=lambda x: x and "/problemset/task/" in str(x)):
+                for link in elem.find_all(
+                    "a", href=lambda x: x and "/problemset/task/" in str(x)
+                ):
                     href = link["href"]
                     problem_id = href.split("/")[-1]
                     problem_ids.add(problem_id)
