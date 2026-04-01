@@ -25,7 +25,9 @@ progress_tracker = None
 async def lifespan(app: FastAPI):
     global session_manager, problem_fetcher, solution_submitter, progress_tracker
 
-    session_manager = SessionManager(base_url=os.getenv("CSES_BASE_URL", "https://cses.fi"))
+    session_manager = SessionManager(
+        base_url=os.getenv("CSES_BASE_URL", "https://cses.fi")
+    )
     problem_fetcher = ProblemFetcher(cache_dir=os.getenv("CACHE_DIR", "cache/problems"))
     solution_submitter = SolutionSubmitter()
     progress_tracker = ProgressTracker()

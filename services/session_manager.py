@@ -11,12 +11,10 @@ class SessionManager:
         self.sessions: Dict[str, httpx.AsyncClient] = {}
         self.session_expiry: Dict[str, datetime] = {}
 
-    async def create_session(
-        self, user_id: str, username: str, password: str
-    ) -> bool:
+    async def create_session(self, user_id: str, username: str, password: str) -> bool:
         """Initialize CSES session with credentials."""
         import re
-        
+
         client = httpx.AsyncClient(
             base_url=self.base_url,
             cookies=httpx.Cookies(),
@@ -27,17 +25,17 @@ class SessionManager:
 
         # Fetch login page to get CSRF token
         login_page = await client.get("/login")
-        
+
         # Extract CSRF token from form
         csrf_match = re.search(
             r'<input[^>]*name="csrf_token"[^>]*value="([^"]*)"',
             login_page.text,
-            re.IGNORECASE
+            re.IGNORECASE,
         )
         if not csrf_match:
             await client.aclose()
             return False
-        
+
         csrf_token = csrf_match.group(1)
 
         # Attempt login with correct field names (nick, pass)

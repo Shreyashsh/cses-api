@@ -68,7 +68,9 @@ class ProblemFetcher:
                 input_format = input_elem.get_text(strip=True) if input_elem else None
             elif "output" in text:
                 output_elem = section.find_next_sibling()
-                output_format = output_elem.get_text(strip=True) if output_elem else None
+                output_format = (
+                    output_elem.get_text(strip=True) if output_elem else None
+                )
 
         # Extract examples
         examples = []
@@ -131,7 +133,9 @@ class ProblemFetcher:
         response.raise_for_status()
         return self.parse_category_page(response.text, category_slug)
 
-    async def fetch_categories(self, client: httpx.AsyncClient) -> List[ProblemCategory]:
+    async def fetch_categories(
+        self, client: httpx.AsyncClient
+    ) -> List[ProblemCategory]:
         """Fetch all problem categories."""
         response = await client.get("/problemset")
         response.raise_for_status()
