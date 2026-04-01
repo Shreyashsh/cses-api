@@ -62,9 +62,9 @@ jobs:
         continue-on-error: true
 
       # AI-powered review with Reviewdog (free, no API key)
-      - name: Run Reviewdog
+      - name: Run Reviewdog on flake8 output
         if: github.event_name == 'pull_request'
-        uses: reviewdog/action-action@v1
+        uses: reviewdog/action-flake8@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review
