@@ -36,5 +36,5 @@ jobs:
 
       - name: Run pylint
         run: |
-          pylint $(git ls-files '*.py') --exit-zero || true
+          pylint $(git ls-files '*.py')
         continue-on-error: true
