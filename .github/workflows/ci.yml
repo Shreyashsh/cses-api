@@ -60,3 +60,13 @@ jobs:
         run: |
           pylint $(git ls-files '*.py') --exit-zero || true
         continue-on-error: true
+
+      # AI-powered review with Reviewdog (free, no API key)
+      - name: Run Reviewdog
+        if: github.event_name == 'pull_request'
+        uses: reviewdog/action-action@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          reporter: github-pr-review
+          filter_mode: added
+          fail_on_error: false
