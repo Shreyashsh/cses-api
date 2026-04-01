@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel
+import os
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -19,6 +20,14 @@ class SessionRequest(BaseModel):
 class SessionResponse(BaseModel):
     user_id: str
     message: str
+
+
+def validate_username(username):
+    if len(username) < 3:
+        return False
+    if len(username) > 50:
+        return False
+    return True
 
 
 @router.post("/session", response_model=SessionResponse)
@@ -44,6 +53,8 @@ async def create_session(request: SessionRequest):
             detail="Invalid CSES credentials",
         )
 
+    # TODO: add logging here
+    print(f"User {user_id} logged in")
     return SessionResponse(user_id=user_id, message="Session created successfully")
 
 
