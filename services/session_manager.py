@@ -15,6 +15,8 @@ class SessionManager:
         self, user_id: str, username: str, password: str
     ) -> bool:
         """Initialize CSES session with credentials."""
+        import re
+        
         client = httpx.AsyncClient(
             base_url=self.base_url,
             cookies=httpx.Cookies(),
@@ -25,19 +27,31 @@ class SessionManager:
 
         # Fetch login page to get CSRF token
         login_page = await client.get("/login")
-        # Extract CSRF token from form (implementation depends on CSES HTML)
+        
+        # Extract CSRF token from form
+        csrf_match = re.search(
+            r'<input[^>]*name="csrf_token"[^>]*value="([^"]*)"',
+            login_page.text,
+            re.IGNORECASE
+        )
+        if not csrf_match:
+            await client.aclose()
+            return False
+        
+        csrf_token = csrf_match.group(1)
 
-        # Attempt login
+        # Attempt login with correct field names (nick, pass)
         response = await client.post(
             "/login",
             data={
-                "username": username,
-                "password": password,
+                "csrf_token": csrf_token,
+                "nick": username,
+                "pass": password,
             },
             follow_redirects=True,
         )
 
-        # Check if login succeeded
+        # Check if login succeeded by looking for logout link
         if response.status_code == 200 and "logout" in response.text.lower():
             self.sessions[user_id] = client
             self.session_expiry[user_id] = datetime.utcnow() + timedelta(hours=2)
