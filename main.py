@@ -10,7 +10,7 @@ from services import (
     SolutionSubmitter,
     ProgressTracker,
 )
-from routers import auth_router, problems_router, submissions_router, progress_router
+from routers import auth, problems, submissions, progress
 
 load_dotenv()
 
@@ -30,10 +30,10 @@ async def lifespan(app: FastAPI):
     solution_submitter = SolutionSubmitter()
     progress_tracker = ProgressTracker()
 
-    auth_router.set_session_manager(session_manager)
-    problems_router.set_services(session_manager, problem_fetcher)
-    submissions_router.set_services(session_manager, solution_submitter, progress_tracker)
-    progress_router.set_progress_tracker(progress_tracker)
+    auth.set_session_manager(session_manager)
+    problems.set_services(session_manager, problem_fetcher)
+    submissions.set_services(session_manager, solution_submitter, progress_tracker)
+    progress.set_progress_tracker(progress_tracker)
 
     yield
 
@@ -56,10 +56,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth_router)
-app.include_router(problems_router)
-app.include_router(submissions_router)
-app.include_router(progress_router)
+app.include_router(auth.router)
+app.include_router(problems.router)
+app.include_router(submissions.router)
+app.include_router(progress.router)
 
 
 @app.get("/")
