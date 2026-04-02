@@ -4,4 +4,5 @@ __pycache__/
 cache/problems/*.json
 
 .qwen/
+.worktrees/
 gha-creds-*.json
