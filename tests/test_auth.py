@@ -1,7 +1,12 @@
+import os
 import pytest
 from fastapi.testclient import TestClient
 
 from main import app
+
+
+TEST_USERNAME = os.getenv("TEST_CSES_USERNAME", "testuser")
+TEST_PASSWORD = os.getenv("TEST_CSES_PASSWORD", "testpass")
 
 
 @pytest.fixture
@@ -10,10 +15,15 @@ def client():
         yield c
 
 
+@pytest.mark.skipif(
+    not os.getenv("RUN_INTEGRATION_TESTS"),
+    reason="Requires CSES credentials"
+)
 def test_create_session_success(client):
+    """Integration test - skipped by default."""
     response = client.post(
         "/auth/session",
-        json={"username": "testuser", "password": "testpass"},
+        json={"username": TEST_USERNAME, "password": TEST_PASSWORD},
     )
     assert response.status_code in [200, 401]
 
