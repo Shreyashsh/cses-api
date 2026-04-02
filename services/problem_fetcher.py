@@ -8,6 +8,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 from models.problem import Problem, ProblemCategory
+from services.retry import retry_async
 
 
 class ProblemFetcher:
@@ -95,6 +96,7 @@ class ProblemFetcher:
             cached_at=datetime.utcnow(),
         )
 
+    @retry_async(max_attempts=3, backoff_factor=0.5)
     async def fetch_problem(
         self, client: httpx.AsyncClient, problem_id: str, category: str
     ) -> Problem:
