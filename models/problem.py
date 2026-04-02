@@ -9,8 +9,8 @@ class Problem(BaseModel):
     title: str
     category: str
     description: Optional[str] = None
-    input_format: Optional[str] = Field(None, alias="input_format")
-    output_format: Optional[str] = Field(None, alias="output_format")
+    input_format: Optional[str] = None
+    output_format: Optional[str] = None
     examples: List[dict] = Field(default_factory=list)
     difficulty: Optional[str] = None
     cached_at: Optional[datetime] = None
