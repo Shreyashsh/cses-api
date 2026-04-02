@@ -1,4 +1,5 @@
-from datetime import datetime
+import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from bs4 import BeautifulSoup
@@ -20,6 +21,10 @@ class SolutionSubmitter:
             "javascript": "3",
             "rust": "6",
         }
+
+    def _generate_submission_id(self, problem_id: str) -> str:
+        """Generate unique submission ID."""
+        return f"{problem_id}_{datetime.now(timezone.utc).timestamp()}_{uuid.uuid4().hex[:8]}"
 
     async def submit_file(
         self,
@@ -69,7 +74,7 @@ class SolutionSubmitter:
         time_elem = soup.find("span", class_="time")
         memory_elem = soup.find("span", class_="memory")
 
-        submission_id = datetime.utcnow().isoformat()
+        submission_id = self._generate_submission_id(problem_id)
 
         return Submission(
             id=submission_id,
