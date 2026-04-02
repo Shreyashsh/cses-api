@@ -7,7 +7,7 @@ from limiter import limiter
 from models.problem import Problem, ProblemCategory, ProblemList
 from models.user_id import UserIdParam, validate_user_id
 
-logger = logging.getLogger('cses_api.problems')
+logger = logging.getLogger("cses_api.problems")
 
 router = APIRouter(prefix="/problems", tags=["Problems"])
 
@@ -15,7 +15,7 @@ _session_manager = None
 _problem_fetcher = None
 
 
-def set_services(manager, fetcher, limiter_instance=None):
+def set_services(manager, fetcher):
     global _session_manager, _problem_fetcher
     _session_manager = manager
     _problem_fetcher = fetcher
@@ -57,9 +57,7 @@ async def list_categories(request: Request, client=Depends(get_client)):
 
 @router.get("/{category}", response_model=ProblemList)
 @limiter.limit("30/minute")
-async def list_problems(
-    request: Request, category: str, client=Depends(get_client)
-):
+async def list_problems(request: Request, category: str, client=Depends(get_client)):
     """List all problems in a category."""
     logger.info(f"Fetching problems for category: {category}")
     try:
