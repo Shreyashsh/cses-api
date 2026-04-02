@@ -18,21 +18,16 @@ from services import ProblemFetcher, ProgressTracker, SessionManager, SolutionSu
 
 load_dotenv()
 
-# Configure logging after imports, before app creation
+# Configure logging
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
         logging.StreamHandler(sys.stdout),
     ],
 )
-logger = logging.getLogger('cses_api')
+logger = logging.getLogger("cses_api")
 logger.setLevel(logging.INFO)
-# Add handler directly to cses_api logger for explicit configuration
-if not logger.handlers:
-    handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
-    logger.addHandler(handler)
 
 
 session_manager = None
@@ -53,7 +48,7 @@ async def lifespan(app: FastAPI):
     progress_tracker = ProgressTracker()
 
     auth.set_session_manager(session_manager)
-    problems.set_services(session_manager, problem_fetcher, limiter)
+    problems.set_services(session_manager, problem_fetcher)
     submissions.set_services(session_manager, solution_submitter, progress_tracker)
     progress.set_progress_tracker(progress_tracker)
 
@@ -85,7 +80,9 @@ async def add_request_id(request: Request, call_next):
 # Parse allowed origins from environment variable
 allowed_origins = [
     origin.strip()
-    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000"
+    ).split(",")
     if origin.strip()
 ]
 
@@ -133,17 +130,3 @@ async def health(request: Request):
 
     status_code = 200 if health_status["status"] == "healthy" else 503
     return JSONResponse(content=health_status, status_code=status_code)
-
-
-@app.get("/debug/sessions")
-@limiter.limit("30/minute")
-async def debug_sessions(request: Request):
-    """Debug endpoint to see active sessions."""
-    if session_manager:
-        return {
-            "active_sessions": list(session_manager.sessions.keys()),
-            "session_expiry": {
-                k: v.isoformat() for k, v in session_manager.session_expiry.items()
-            },
-        }
-    return {"error": "Session manager not initialized"}

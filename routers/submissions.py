@@ -1,19 +1,58 @@
 import logging
+import os
+from typing import Optional
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 
 from limiter import limiter
 from models.submission import Submission
 from models.user_id import UserIdParam, validate_user_id
 
-logger = logging.getLogger('cses_api.submissions')
+logger = logging.getLogger("cses_api.submissions")
 
 router = APIRouter(prefix="/problems", tags=["Submissions"])
 
 _session_manager = None
 _solution_submitter = None
 _progress_tracker = None
+
+MAX_FILE_SIZE = 1024 * 1024  # 1MB
+ALLOWED_EXTENSIONS = {
+    ".py",
+    ".cpp",
+    ".c",
+    ".java",
+    ".js",
+    ".rs",
+    ".go",
+    ".rb",
+    ".cs",
+    ".pas",
+}
+
+MAX_FILE_SIZE = 1024 * 1024  # 1MB
+ALLOWED_EXTENSIONS = {
+    ".py",
+    ".cpp",
+    ".c",
+    ".java",
+    ".js",
+    ".rs",
+    ".go",
+    ".rb",
+    ".cs",
+    ".pas",
+}
 
 
 def set_services(manager, submitter, tracker):
@@ -63,6 +102,21 @@ async def submit_solution(
         file_content = await file.read()
         filename = file.filename or "solution.py"
 
+        if len(file_content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File too large. Maximum size is {MAX_FILE_SIZE // 1024}KB.",
+            )
+
+        import os
+
+        ext = os.path.splitext(filename)[1].lower()
+        if ext and ext not in ALLOWED_EXTENSIONS:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Unsupported file type. Allowed extensions: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+            )
+
         submission = await _solution_submitter.submit_file(
             client=client,
             problem_id=problem_id,
@@ -72,7 +126,9 @@ async def submit_solution(
         )
 
         await _progress_tracker.add_submission(params.user_id, submission)
-        logger.info(f"Submission successful for problem {problem_id}: {submission.submission_id}")
+        logger.info(
+            f"Submission successful for problem {problem_id}: {submission.submission_id}"
+        )
 
         return submission
     except Exception as e:

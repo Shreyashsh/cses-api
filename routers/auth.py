@@ -1,12 +1,12 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, SecretStr
 
 from limiter import limiter
 from models.user_id import UserIdParam, validate_user_id
 
-logger = logging.getLogger('cses_api.auth')
+logger = logging.getLogger("cses_api.auth")
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -20,7 +20,7 @@ def set_session_manager(manager):
 
 class SessionRequest(BaseModel):
     username: str
-    password: str
+    password: SecretStr
 
 
 class SessionResponse(BaseModel):
@@ -45,7 +45,7 @@ async def create_session(request: Request, request_data: SessionRequest):
     success = await _session_manager.create_session(
         user_id=user_id,
         username=request_data.username,
-        password=request_data.password,
+        password=request_data.password.get_secret_value(),
     )
 
     if not success:
@@ -61,7 +61,9 @@ async def create_session(request: Request, request_data: SessionRequest):
 
 @router.delete("/session")
 @limiter.limit("30/minute")
-async def close_session(request: Request, params: UserIdParam = Depends(validate_user_id)):
+async def close_session(
+    request: Request, params: UserIdParam = Depends(validate_user_id)
+):
     """Close CSES session."""
     logger.info(f"Closing session for user: {params.user_id}")
     if not _session_manager:
