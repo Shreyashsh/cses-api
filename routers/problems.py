@@ -3,6 +3,7 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from models.problem import Problem, ProblemCategory, ProblemList
+from models.user_id import UserIdParam, validate_user_id
 
 router = APIRouter(prefix="/problems", tags=["Problems"])
 
@@ -16,14 +17,14 @@ def set_services(manager, fetcher):
     _problem_fetcher = fetcher
 
 
-def get_client(user_id: str = "default"):
+def get_client(params: UserIdParam = Depends(validate_user_id)):
     if not _session_manager:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Session manager not initialized",
         )
 
-    client = _session_manager.get_session(user_id)
+    client = _session_manager.get_session(params.user_id)
     if not client:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -34,7 +35,7 @@ def get_client(user_id: str = "default"):
 
 
 @router.get("", response_model=List[ProblemCategory])
-async def list_categories(user_id: str = "default", client=Depends(get_client)):
+async def list_categories(client=Depends(get_client)):
     """List all problem categories."""
     try:
         categories = await _problem_fetcher.fetch_categories(client)
@@ -48,7 +49,7 @@ async def list_categories(user_id: str = "default", client=Depends(get_client)):
 
 @router.get("/{category}", response_model=ProblemList)
 async def list_problems(
-    category: str, user_id: str = "default", client=Depends(get_client)
+    category: str, client=Depends(get_client)
 ):
     """List all problems in a category."""
     try:
@@ -65,7 +66,6 @@ async def list_problems(
 async def get_problem(
     category: str,
     problem_id: str,
-    user_id: str = "default",
     client=Depends(get_client),
 ):
     """Fetch problem details (cached)."""

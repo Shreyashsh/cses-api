@@ -3,6 +3,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from models.submission import Submission
+from models.user_id import UserIdParam, validate_user_id
 
 router = APIRouter(prefix="/problems", tags=["Submissions"])
 
@@ -18,14 +19,14 @@ def set_services(manager, submitter, tracker):
     _progress_tracker = tracker
 
 
-def get_client_and_user(user_id: str = "default"):
+def get_client_and_user(params: UserIdParam = Depends(validate_user_id)):
     if not _session_manager:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Session manager not initialized",
         )
 
-    client = _session_manager.get_session(user_id)
+    client = _session_manager.get_session(params.user_id)
     if not client:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -38,7 +39,7 @@ def get_client_and_user(user_id: str = "default"):
 @router.post("/{problem_id}/submit", response_model=Submission)
 async def submit_solution(
     problem_id: str,
-    user_id: str = "default",
+    params: UserIdParam = Depends(validate_user_id),
     language: str = Form("python3"),
     file: Optional[UploadFile] = File(None),
     client=Depends(get_client_and_user),
@@ -62,7 +63,7 @@ async def submit_solution(
             language=language,
         )
 
-        _progress_tracker.add_submission("default", submission)
+        _progress_tracker.add_submission(params.user_id, submission)
 
         return submission
     except Exception as e:

@@ -6,20 +6,20 @@ from main import app
 
 @pytest.fixture
 def client():
-    with TestClient(app) as c:
+    with TestClient(app, raise_server_exceptions=False) as c:
         yield c
 
 
 def test_list_categories(client):
-    response = client.get("/problems")
+    response = client.get("/problems?user_id=testuser")
     assert response.status_code in [200, 401]
 
 
 def test_list_problems_in_category(client):
-    response = client.get("/problems/introductory-problems")
+    response = client.get("/problems/introductory-problems?user_id=testuser")
     assert response.status_code in [200, 401]
 
 
 def test_get_problem_details(client):
-    response = client.get("/problems/introductory-problems/weird-algorithm")
+    response = client.get("/problems/introductory-problems/weird-algorithm?user_id=testuser")
     assert response.status_code in [200, 401]

@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
+
+from models.user_id import UserIdParam, validate_user_id
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -48,7 +50,7 @@ async def create_session(request: SessionRequest):
 
 
 @router.delete("/session")
-async def close_session(user_id: str):
+async def close_session(params: UserIdParam = Depends(validate_user_id)):
     """Close CSES session."""
     if not _session_manager:
         raise HTTPException(
@@ -56,5 +58,5 @@ async def close_session(user_id: str):
             detail="Session manager not initialized",
         )
 
-    await _session_manager.close_session(user_id)
+    await _session_manager.close_session(params.user_id)
     return {"message": "Session closed"}
