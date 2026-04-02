@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
 import httpx
@@ -55,7 +55,9 @@ class SessionManager:
         # Check if login succeeded by looking for logout link
         if response.status_code == 200 and "logout" in response.text.lower():
             self.sessions[user_id] = client
-            self.session_expiry[user_id] = datetime.utcnow() + timedelta(hours=2)
+            self.session_expiry[user_id] = datetime.now(timezone.utc) + timedelta(
+                hours=2
+            )
             return True
 
         await client.aclose()
@@ -67,15 +69,17 @@ class SessionManager:
             return None
 
         expiry = self.session_expiry.get(user_id)
-        if expiry is None or datetime.utcnow() > expiry:
-            # Clean up orphaned or expired session
-            if user_id in self.sessions:
-                # Schedule async close to prevent resource leak
+        if expiry is None or datetime.now(timezone.utc) > expiry:
+            client = self.sessions.pop(user_id, None)
+            self.session_expiry.pop(user_id, None)
+            if client:
                 import asyncio
-                asyncio.create_task(self.sessions[user_id].aclose())
-                del self.sessions[user_id]
-            if user_id in self.session_expiry:
-                del self.session_expiry[user_id]
+
+                try:
+                    asyncio.get_running_loop()
+                    asyncio.create_task(client.aclose())
+                except RuntimeError:
+                    pass
             return None
 
         return self.sessions[user_id]

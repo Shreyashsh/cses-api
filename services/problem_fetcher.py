@@ -1,6 +1,7 @@
 import json
 import os
-from datetime import datetime, timedelta
+import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -24,8 +25,8 @@ class ProblemFetcher:
     def _is_cache_valid(self, cache_path: Path, max_age_hours: int = 24) -> bool:
         if not cache_path.exists():
             return False
-        mtime = datetime.fromtimestamp(cache_path.stat().st_mtime)
-        age = datetime.utcnow() - mtime
+        mtime = datetime.fromtimestamp(cache_path.stat().st_mtime, tz=timezone.utc)
+        age = datetime.now(timezone.utc) - mtime
         return age < timedelta(hours=max_age_hours)
 
     def get_from_cache(self, problem_id: str) -> Optional[Problem]:
@@ -34,15 +35,26 @@ class ProblemFetcher:
         if not self._is_cache_valid(cache_path):
             return None
 
-        with open(cache_path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return Problem(**data)
+        try:
+            with open(cache_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return Problem(**data)
+        except (json.JSONDecodeError, ValueError):
+            cache_path.unlink(missing_ok=True)
+            return None
 
     def save_to_cache(self, problem: Problem) -> None:
-        """Save problem to cache."""
+        """Save problem to cache atomically."""
         cache_path = self._get_cache_path(problem.id)
-        with open(cache_path, "w", encoding="utf-8") as f:
-            json.dump(problem.model_dump(by_alias=True), f, indent=2, default=str)
+        data = problem.model_dump()
+        fd, tmp_path = tempfile.mkstemp(dir=self.cache_dir, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, default=str)
+            os.replace(tmp_path, cache_path)
+        except Exception:
+            os.unlink(tmp_path)
+            raise
 
     def parse_problem_page(self, html: str, category: str) -> Problem:
         """Parse CSES problem HTML into Problem model."""
@@ -93,7 +105,7 @@ class ProblemFetcher:
             input_format=input_format,
             output_format=output_format,
             examples=examples,
-            cached_at=datetime.utcnow(),
+            cached_at=datetime.now(timezone.utc),
         )
 
     @retry_async(max_attempts=3, backoff_factor=0.5)

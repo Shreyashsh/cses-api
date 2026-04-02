@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from pydantic import BaseModel, Field
@@ -10,7 +10,7 @@ class Progress(BaseModel):
     user_id: str
     solved: List[str] = Field(default_factory=list)
     submissions: List[Submission] = Field(default_factory=list)
-    last_updated: datetime = Field(default_factory=datetime.utcnow)
+    last_updated: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class UserProgress(BaseModel):

@@ -8,12 +8,14 @@ class UserIdParam(BaseModel):
 
     user_id: str = Field(..., min_length=1, max_length=64)
 
-    @field_validator('user_id')
+    @field_validator("user_id")
     @classmethod
     def validate_user_id(cls, v: str) -> str:
         """Validate user_id format - only alphanumeric, underscore, hyphen."""
-        if not v.replace('_', '').replace('-', '').isalnum():
-            raise ValueError('Invalid user_id format. Only alphanumeric, underscore, and hyphen allowed.')
+        if not v.replace("_", "").replace("-", "").isalnum():
+            raise ValueError(
+                "Invalid user_id format. Only alphanumeric, underscore, and hyphen allowed."
+            )
         return v
 
 

@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 from models.progress import Progress, UserProgress
@@ -40,7 +40,7 @@ class ProgressTracker:
                 if submission.problem_id not in self.progress[user_id].solved:
                     self.progress[user_id].solved.append(submission.problem_id)
 
-            self.progress[user_id].last_updated = datetime.utcnow()
+            self.progress[user_id].last_updated = datetime.now(timezone.utc)
 
     def get_user_progress(self, user_id: str) -> Optional[UserProgress]:
         progress = self.progress.get(user_id)

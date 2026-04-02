@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -16,6 +16,5 @@ class Submission(BaseModel):
     id: str
     problem_id: str
     language: str
-    file_path: Optional[str] = None
     verdict: SubmissionVerdict
-    submitted_at: datetime = Field(default_factory=datetime.utcnow)
+    submitted_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
