@@ -2,11 +2,13 @@ import logging
 import os
 import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 from uuid import uuid4
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -103,7 +105,26 @@ async def root(request: Request):
 @app.get("/health")
 @limiter.limit("30/minute")
 async def health(request: Request):
-    return {"status": "healthy"}
+    """Health check with dependency status."""
+    health_status = {"status": "healthy", "checks": {}}
+
+    # Check cache directory
+    cache_path = Path(os.getenv("CACHE_DIR", "cache/problems"))
+    try:
+        if not cache_path.exists():
+            cache_path.mkdir(parents=True, exist_ok=True)
+        if not os.access(cache_path, os.W_OK):
+            health_status["checks"]["cache"] = "unhealthy"
+            health_status["status"] = "degraded"
+        else:
+            health_status["checks"]["cache"] = "healthy"
+    except Exception as e:
+        logger.error(f"Cache check failed: {e}")
+        health_status["checks"]["cache"] = "unhealthy"
+        health_status["status"] = "degraded"
+
+    status_code = 200 if health_status["status"] == "healthy" else 503
+    return JSONResponse(content=health_status, status_code=status_code)
 
 
 @app.get("/debug/sessions")
