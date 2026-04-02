@@ -6,7 +6,7 @@ from main import app
 
 @pytest.fixture
 def client():
-    with TestClient(app, raise_server_exceptions=False) as c:
+    with TestClient(app) as c:
         yield c
 
 
@@ -21,5 +21,12 @@ def test_list_problems_in_category(client):
 
 
 def test_get_problem_details(client):
-    response = client.get("/problems/introductory-problems/weird-algorithm?user_id=testuser")
+    response = client.get(
+        "/problems/introductory-problems/weird-algorithm?user_id=testuser"
+    )
     assert response.status_code in [200, 401]
+
+
+def test_invalid_user_id(client):
+    response = client.get("/problems?user_id=test;user")
+    assert response.status_code == 422

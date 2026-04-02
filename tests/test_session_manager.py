@@ -34,6 +34,7 @@ def test_http_client_has_timeout():
 
     # Cleanup
     import asyncio
+
     asyncio.run(client.aclose())
 
 

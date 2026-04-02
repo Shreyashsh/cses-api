@@ -11,16 +11,16 @@ def mock_services():
     mock_session_manager = MagicMock()
     mock_client = MagicMock()
     mock_session_manager.get_session.return_value = mock_client
-    
+
     # Create mock problem fetcher
     mock_problem_fetcher = MagicMock()
     mock_problem_fetcher.fetch_categories = AsyncMock()
     mock_problem_fetcher.fetch_category_problems = AsyncMock()
     mock_problem_fetcher.fetch_problem = AsyncMock()
-    
+
     # Patch both services
-    with patch('routers.problems._session_manager', mock_session_manager):
-        with patch('routers.problems._problem_fetcher', mock_problem_fetcher):
+    with patch("routers.problems._session_manager", mock_session_manager):
+        with patch("routers.problems._problem_fetcher", mock_problem_fetcher):
             yield mock_session_manager, mock_problem_fetcher
 
 
@@ -82,7 +82,9 @@ async def test_list_problems_in_category_success(client, mock_services):
 async def test_list_problems_in_category_error(client, mock_services):
     """Should return 502 on error."""
     _, mock_problem_fetcher = mock_services
-    mock_problem_fetcher.fetch_category_problems.side_effect = Exception("Network error")
+    mock_problem_fetcher.fetch_category_problems.side_effect = Exception(
+        "Network error"
+    )
 
     response = client.get("/problems/intro?user_id=test_user")
 

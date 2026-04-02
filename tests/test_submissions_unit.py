@@ -13,19 +13,19 @@ def mock_services():
     mock_session_manager = MagicMock()
     mock_client = MagicMock()
     mock_session_manager.get_session.return_value = mock_client
-    
+
     # Create mock solution submitter
     mock_solution_submitter = MagicMock()
     mock_solution_submitter.submit_file = AsyncMock()
-    
+
     # Create mock progress tracker
     mock_progress_tracker = MagicMock()
     mock_progress_tracker.add_submission = AsyncMock()
-    
+
     # Patch all services
-    with patch('routers.submissions._session_manager', mock_session_manager):
-        with patch('routers.submissions._solution_submitter', mock_solution_submitter):
-            with patch('routers.submissions._progress_tracker', mock_progress_tracker):
+    with patch("routers.submissions._session_manager", mock_session_manager):
+        with patch("routers.submissions._solution_submitter", mock_solution_submitter):
+            with patch("routers.submissions._progress_tracker", mock_progress_tracker):
                 yield mock_session_manager, mock_solution_submitter, mock_progress_tracker
 
 
@@ -52,10 +52,7 @@ async def test_submit_solution_success(client, mock_services):
 
     files = {"file": ("solution.cpp", BytesIO(b"// solution"), "text/x-c++src")}
 
-    response = client.post(
-        "/problems/apio/submit?user_id=test_user",
-        files=files
-    )
+    response = client.post("/problems/apio/submit?user_id=test_user", files=files)
 
     assert response.status_code == 200
     data = response.json()
@@ -70,10 +67,7 @@ async def test_submit_solution_network_error(client, mock_services):
 
     files = {"file": ("solution.cpp", BytesIO(b"// solution"), "text/x-c++src")}
 
-    response = client.post(
-        "/problems/apio/submit?user_id=test_user",
-        files=files
-    )
+    response = client.post("/problems/apio/submit?user_id=test_user", files=files)
 
     assert response.status_code == 502
 
@@ -82,8 +76,7 @@ async def test_submit_solution_network_error(client, mock_services):
 async def test_submit_solution_no_file(client, mock_services):
     """Should return 400 when no file provided."""
     response = client.post(
-        "/problems/apio/submit?user_id=test_user",
-        data={"language": "python3"}
+        "/problems/apio/submit?user_id=test_user", data={"language": "python3"}
     )
 
     assert response.status_code == 400
