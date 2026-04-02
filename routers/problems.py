@@ -1,7 +1,8 @@
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 
+from limiter import limiter
 from models.problem import Problem, ProblemCategory, ProblemList
 from models.user_id import UserIdParam, validate_user_id
 
@@ -11,7 +12,7 @@ _session_manager = None
 _problem_fetcher = None
 
 
-def set_services(manager, fetcher):
+def set_services(manager, fetcher, limiter_instance=None):
     global _session_manager, _problem_fetcher
     _session_manager = manager
     _problem_fetcher = fetcher
@@ -35,7 +36,8 @@ def get_client(params: UserIdParam = Depends(validate_user_id)):
 
 
 @router.get("", response_model=List[ProblemCategory])
-async def list_categories(client=Depends(get_client)):
+@limiter.limit("30/minute")
+async def list_categories(request: Request, client=Depends(get_client)):
     """List all problem categories."""
     try:
         categories = await _problem_fetcher.fetch_categories(client)
@@ -48,8 +50,9 @@ async def list_categories(client=Depends(get_client)):
 
 
 @router.get("/{category}", response_model=ProblemList)
+@limiter.limit("30/minute")
 async def list_problems(
-    category: str, client=Depends(get_client)
+    request: Request, category: str, client=Depends(get_client)
 ):
     """List all problems in a category."""
     try:
@@ -63,7 +66,9 @@ async def list_problems(
 
 
 @router.get("/{category}/{problem_id}", response_model=Problem)
+@limiter.limit("30/minute")
 async def get_problem(
+    request: Request,
     category: str,
     problem_id: str,
     client=Depends(get_client),

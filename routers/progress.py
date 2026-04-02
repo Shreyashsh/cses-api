@@ -1,7 +1,8 @@
 from typing import List
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 
+from limiter import limiter
 from models.progress import UserProgress
 from models.submission import Submission
 
@@ -16,7 +17,8 @@ def set_progress_tracker(tracker):
 
 
 @router.get("", response_model=UserProgress)
-async def get_progress(user_id: str = "default"):
+@limiter.limit("30/minute")
+async def get_progress(request: Request, user_id: str = "default"):
     """Get user progress."""
     progress = _progress_tracker.get_user_progress(user_id)
     if not progress:
@@ -30,7 +32,8 @@ async def get_progress(user_id: str = "default"):
 
 
 @router.get("/submissions/{submission_id}", response_model=Submission)
-async def get_submission(submission_id: str, user_id: str = "default"):
+@limiter.limit("30/minute")
+async def get_submission(request: Request, submission_id: str, user_id: str = "default"):
     """Get specific submission by ID."""
     submission = _progress_tracker.get_submission_by_id(user_id, submission_id)
     if not submission:

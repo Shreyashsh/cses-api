@@ -1,10 +1,14 @@
 import os
 from contextlib import asynccontextmanager
+from uuid import uuid4
 
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
+from limiter import limiter
 from routers import auth, problems, progress, submissions
 from services import ProblemFetcher, ProgressTracker, SessionManager, SolutionSubmitter
 
@@ -29,7 +33,7 @@ async def lifespan(app: FastAPI):
     progress_tracker = ProgressTracker()
 
     auth.set_session_manager(session_manager)
-    problems.set_services(session_manager, problem_fetcher)
+    problems.set_services(session_manager, problem_fetcher, limiter)
     submissions.set_services(session_manager, solution_submitter, progress_tracker)
     progress.set_progress_tracker(progress_tracker)
 
@@ -46,6 +50,18 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.middleware("http")
+async def add_request_id(request: Request, call_next):
+    request_id = request.headers.get("X-Request-ID") or str(uuid4())
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    return response
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
@@ -61,17 +77,20 @@ app.include_router(progress.router)
 
 
 @app.get("/")
-async def root():
+@limiter.limit("30/minute")
+async def root(request: Request):
     return {"message": "CSES API", "docs": "/docs"}
 
 
 @app.get("/health")
-async def health():
+@limiter.limit("30/minute")
+async def health(request: Request):
     return {"status": "healthy"}
 
 
 @app.get("/debug/sessions")
-async def debug_sessions():
+@limiter.limit("30/minute")
+async def debug_sessions(request: Request):
     """Debug endpoint to see active sessions."""
     if session_manager:
         return {

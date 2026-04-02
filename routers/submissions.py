@@ -1,7 +1,8 @@
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
 
+from limiter import limiter
 from models.submission import Submission
 from models.user_id import UserIdParam, validate_user_id
 
@@ -37,7 +38,9 @@ def get_client_and_user(params: UserIdParam = Depends(validate_user_id)):
 
 
 @router.post("/{problem_id}/submit", response_model=Submission)
+@limiter.limit("30/minute")
 async def submit_solution(
+    request: Request,
     problem_id: str,
     params: UserIdParam = Depends(validate_user_id),
     language: str = Form("python3"),
