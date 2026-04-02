@@ -22,6 +22,8 @@ class SessionManager:
             headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             },
+            timeout=httpx.Timeout(30.0, connect=10.0),
+            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
         )
 
         # Fetch login page to get CSRF token
