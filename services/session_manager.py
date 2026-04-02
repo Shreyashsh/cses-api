@@ -64,7 +64,16 @@ class SessionManager:
         if user_id not in self.sessions:
             return None
 
-        if datetime.utcnow() > self.session_expiry.get(user_id, datetime.min):
+        expiry = self.session_expiry.get(user_id)
+        if expiry is None or datetime.utcnow() > expiry:
+            # Clean up orphaned or expired session
+            if user_id in self.sessions:
+                # Schedule async close to prevent resource leak
+                import asyncio
+                asyncio.create_task(self.sessions[user_id].aclose())
+                del self.sessions[user_id]
+            if user_id in self.session_expiry:
+                del self.session_expiry[user_id]
             return None
 
         return self.sessions[user_id]
