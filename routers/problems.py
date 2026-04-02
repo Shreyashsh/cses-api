@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -5,6 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from limiter import limiter
 from models.problem import Problem, ProblemCategory, ProblemList
 from models.user_id import UserIdParam, validate_user_id
+
+logger = logging.getLogger('cses_api.problems')
 
 router = APIRouter(prefix="/problems", tags=["Problems"])
 
@@ -39,10 +42,13 @@ def get_client(params: UserIdParam = Depends(validate_user_id)):
 @limiter.limit("30/minute")
 async def list_categories(request: Request, client=Depends(get_client)):
     """List all problem categories."""
+    logger.info("Fetching categories")
     try:
         categories = await _problem_fetcher.fetch_categories(client)
+        logger.info(f"Fetched {len(categories)} categories")
         return categories
     except Exception as e:
+        logger.exception(f"Failed to fetch categories: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to fetch categories: {str(e)}",
@@ -55,10 +61,13 @@ async def list_problems(
     request: Request, category: str, client=Depends(get_client)
 ):
     """List all problems in a category."""
+    logger.info(f"Fetching problems for category: {category}")
     try:
         problems = await _problem_fetcher.fetch_category_problems(client, category)
+        logger.info(f"Fetched {len(problems)} problems for category: {category}")
         return ProblemList(category=category, problems=problems)
     except Exception as e:
+        logger.exception(f"Failed to fetch problems for category {category}: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to fetch problems: {str(e)}",
@@ -74,10 +83,13 @@ async def get_problem(
     client=Depends(get_client),
 ):
     """Fetch problem details (cached)."""
+    logger.info(f"Fetching problem {problem_id} in category: {category}")
     try:
         problem = await _problem_fetcher.fetch_problem(client, problem_id, category)
+        logger.info(f"Fetched problem: {problem_id}")
         return problem
     except Exception as e:
+        logger.exception(f"Failed to fetch problem {problem_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to fetch problem: {str(e)}",

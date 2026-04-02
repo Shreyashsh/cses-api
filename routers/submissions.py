@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status
@@ -5,6 +6,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Uplo
 from limiter import limiter
 from models.submission import Submission
 from models.user_id import UserIdParam, validate_user_id
+
+logger = logging.getLogger('cses_api.submissions')
 
 router = APIRouter(prefix="/problems", tags=["Submissions"])
 
@@ -48,7 +51,9 @@ async def submit_solution(
     client=Depends(get_client_and_user),
 ):
     """Submit solution file to CSES."""
+    logger.info(f"Submitting solution for problem: {problem_id}, language: {language}")
     if not file:
+        logger.warning(f"No file provided for problem: {problem_id}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="No file provided. Upload a code file.",
@@ -67,9 +72,11 @@ async def submit_solution(
         )
 
         await _progress_tracker.add_submission(params.user_id, submission)
+        logger.info(f"Submission successful for problem {problem_id}: {submission.submission_id}")
 
         return submission
     except Exception as e:
+        logger.exception(f"Submission failed for problem {problem_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Submission failed: {str(e)}",

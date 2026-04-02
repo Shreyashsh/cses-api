@@ -1,4 +1,6 @@
+import logging
 import os
+import sys
 from contextlib import asynccontextmanager
 from uuid import uuid4
 
@@ -13,6 +15,22 @@ from routers import auth, problems, progress, submissions
 from services import ProblemFetcher, ProgressTracker, SessionManager, SolutionSubmitter
 
 load_dotenv()
+
+# Configure logging after imports, before app creation
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+    ],
+)
+logger = logging.getLogger('cses_api')
+logger.setLevel(logging.INFO)
+# Add handler directly to cses_api logger for explicit configuration
+if not logger.handlers:
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    logger.addHandler(handler)
 
 
 session_manager = None
