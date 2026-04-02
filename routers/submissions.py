@@ -66,7 +66,7 @@ async def submit_solution(
             language=language,
         )
 
-        _progress_tracker.add_submission(params.user_id, submission)
+        await _progress_tracker.add_submission(params.user_id, submission)
 
         return submission
     except Exception as e:

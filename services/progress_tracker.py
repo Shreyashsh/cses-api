@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional
 
@@ -10,6 +11,13 @@ class ProgressTracker:
 
     def __init__(self):
         self.progress: Dict[str, Progress] = {}
+        self._locks: Dict[str, asyncio.Lock] = {}
+
+    def _get_lock(self, user_id: str) -> asyncio.Lock:
+        """Get or create lock for user."""
+        if user_id not in self._locks:
+            self._locks[user_id] = asyncio.Lock()
+        return self._locks[user_id]
 
     def get_progress(self, user_id: str) -> Optional[Progress]:
         return self.progress.get(user_id)
@@ -19,17 +27,20 @@ class ProgressTracker:
         self.progress[user_id] = progress
         return progress
 
-    def add_submission(self, user_id: str, submission: Submission) -> None:
-        if user_id not in self.progress:
-            self.create_progress(user_id)
+    async def add_submission(self, user_id: str, submission: Submission) -> None:
+        """Add submission thread-safely using per-user locks."""
+        lock = self._get_lock(user_id)
+        async with lock:
+            if user_id not in self.progress:
+                self.create_progress(user_id)
 
-        self.progress[user_id].submissions.append(submission)
+            self.progress[user_id].submissions.append(submission)
 
-        if submission.verdict.status == "Accepted":
-            if submission.problem_id not in self.progress[user_id].solved:
-                self.progress[user_id].solved.append(submission.problem_id)
+            if submission.verdict.status == "Accepted":
+                if submission.problem_id not in self.progress[user_id].solved:
+                    self.progress[user_id].solved.append(submission.problem_id)
 
-        self.progress[user_id].last_updated = datetime.utcnow()
+            self.progress[user_id].last_updated = datetime.utcnow()
 
     def get_user_progress(self, user_id: str) -> Optional[UserProgress]:
         progress = self.progress.get(user_id)
