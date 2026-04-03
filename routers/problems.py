@@ -55,7 +55,7 @@ async def list_categories(request: Request, client=Depends(get_client)):
         logger.exception(f"Failed to fetch categories: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to fetch categories: {str(e)}",
+            detail="Failed to fetch categories from CSES. Please try again later.",
         )
 
 
@@ -81,7 +81,7 @@ async def list_problems(
         logger.exception(f"Failed to fetch problems for category {category}: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to fetch problems: {str(e)}",
+            detail="Failed to fetch problems from CSES. Please try again later.",
         )
 
 
@@ -108,5 +108,5 @@ async def get_problem(
         logger.exception(f"Failed to fetch problem {problem_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Failed to fetch problem: {str(e)}",
+            detail="Failed to fetch problem data from CSES. Please try again later.",
         )

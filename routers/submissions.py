@@ -129,5 +129,5 @@ async def submit_solution(
         logger.exception(f"Submission failed for problem {problem_id}: {e}")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Submission failed: {str(e)}",
+            detail="Submission failed. Please try again later.",
         )
