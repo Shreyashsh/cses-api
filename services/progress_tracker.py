@@ -14,10 +14,8 @@ class ProgressTracker:
         self._locks: Dict[str, asyncio.Lock] = {}
 
     def _get_lock(self, user_id: str) -> asyncio.Lock:
-        """Get or create lock for user."""
-        if user_id not in self._locks:
-            self._locks[user_id] = asyncio.Lock()
-        return self._locks[user_id]
+        """Get or create lock for user. Uses dict.setdefault for atomicity."""
+        return self._locks.setdefault(user_id, asyncio.Lock())
 
     def get_progress(self, user_id: str) -> Optional[Progress]:
         return self.progress.get(user_id)
