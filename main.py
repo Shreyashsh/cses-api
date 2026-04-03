@@ -87,6 +87,13 @@ allowed_origins = [
     if origin.strip()
 ]
 
+# Reject wildcard origins when credentials are allowed (security risk)
+if "*" in allowed_origins:
+    raise ValueError(
+        "Wildcard '*' is not allowed in ALLOWED_ORIGINS with allow_credentials=True. "
+        "Specify exact origins instead."
+    )
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
