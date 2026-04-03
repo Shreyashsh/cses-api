@@ -77,12 +77,13 @@ class SessionManager:
             client = self.sessions.pop(user_id, None)
             self.session_expiry.pop(user_id, None)
             if client:
+                # Schedule async close safely without blocking
                 try:
                     loop = asyncio.get_running_loop()
                     loop.create_task(client.aclose())
                 except RuntimeError:
-                    # No running loop; schedule close on next available loop
-                    asyncio.ensure_future(client.aclose())
+                    # No running loop; close synchronously in a new event loop
+                    asyncio.run(client.aclose())
             return None
 
         return self.sessions[user_id]
