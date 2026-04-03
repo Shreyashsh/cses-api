@@ -17,6 +17,8 @@ All CSES-interacting endpoints require a `user_id` query parameter.
 
 ### 1. Authenticate
 
+> **Note:** Your CSES password is forwarded directly to cses.fi. This API does not store or cache credentials. Ensure you're running over HTTPS in production.
+
 ```bash
 curl -X POST http://127.0.0.1:8000/auth/session \
   -H "Content-Type: application/json" \
