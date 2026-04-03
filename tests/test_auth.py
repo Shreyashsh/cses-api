@@ -39,7 +39,10 @@ def test_create_session_invalid_credentials(client):
     """
     response = client.post(
         "/auth/session",
-        json={"username": "invalid_user_for_test", "password": "wrong_password_for_test"},
+        json={
+            "username": "invalid_user_for_test",
+            "password": "wrong_password_for_test",
+        },
     )
     assert response.status_code == 401
 

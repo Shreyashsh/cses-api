@@ -241,7 +241,11 @@ class ProblemFetcher:
             seen_in_output.add(name)
             slug = name.lower().replace(" ", "-")
             categories.append(
-                ProblemCategory(name=name, slug=slug, problem_count=len(category_problems.get(name, set())))
+                ProblemCategory(
+                    name=name,
+                    slug=slug,
+                    problem_count=len(category_problems.get(name, set())),
+                )
             )
 
         # Cache the result

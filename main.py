@@ -50,9 +50,9 @@ async def lifespan(app: FastAPI):
 
     # Configure trusted proxies for X-Forwarded-For (empty = no proxy trusted)
     proxies = os.getenv("TRUSTED_PROXIES", "")
-    app.state.trusted_proxies = {
-        p.strip() for p in proxies.split(",") if p.strip()
-    } if proxies else set()
+    app.state.trusted_proxies = (
+        {p.strip() for p in proxies.split(",") if p.strip()} if proxies else set()
+    )
 
     auth.set_session_manager(session_manager)
     problems.set_services(session_manager, problem_fetcher)

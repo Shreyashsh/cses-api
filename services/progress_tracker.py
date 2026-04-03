@@ -38,7 +38,9 @@ class ProgressTracker:
 
             # Evict oldest submissions when limit exceeded to bound memory
             if len(progress.submissions) > self.MAX_SUBMISSIONS_PER_USER:
-                progress.submissions = progress.submissions[-self.MAX_SUBMISSIONS_PER_USER:]
+                progress.submissions = progress.submissions[
+                    -self.MAX_SUBMISSIONS_PER_USER :
+                ]
 
             if submission.verdict.status == "Accepted":
                 if submission.problem_id not in progress.solved:
