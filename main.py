@@ -6,8 +6,6 @@ from pathlib import Path
 from uuid import uuid4
 
 from dotenv import load_dotenv
-
-load_dotenv("config")
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -18,7 +16,8 @@ from limiter import limiter
 from routers import auth, problems, progress, submissions
 from services import ProblemFetcher, ProgressTracker, SessionManager, SolutionSubmitter
 
-load_dotenv()
+# Load environment variables from project-specific config file
+load_dotenv("cses.properties")
 
 # Configure logging
 logging.basicConfig(
