@@ -5,8 +5,9 @@ from fastapi.testclient import TestClient
 
 from main import app
 
-TEST_USERNAME = os.getenv("TEST_CSES_USERNAME", "testuser")
-TEST_PASSWORD = os.getenv("TEST_CSES_PASSWORD", "testpass")
+# No default credentials - must be set via environment variables for integration tests
+TEST_USERNAME = os.getenv("TEST_CSES_USERNAME")
+TEST_PASSWORD = os.getenv("TEST_CSES_PASSWORD")
 
 
 @pytest.fixture
@@ -16,7 +17,8 @@ def client():
 
 
 @pytest.mark.skipif(
-    not os.getenv("RUN_INTEGRATION_TESTS"), reason="Requires CSES credentials"
+    not TEST_USERNAME or not TEST_PASSWORD,
+    reason="Requires TEST_CSES_USERNAME and TEST_CSES_PASSWORD environment variables",
 )
 def test_create_session_success(client):
     """Integration test - skipped by default."""
@@ -27,10 +29,17 @@ def test_create_session_success(client):
     assert response.status_code in [200, 401]
 
 
+@pytest.mark.skipif(
+    not TEST_USERNAME or not TEST_PASSWORD,
+    reason="Requires TEST_CSES_USERNAME and TEST_CSES_PASSWORD environment variables to avoid sending random credentials to CSES",
+)
 def test_create_session_invalid_credentials(client):
+    """Integration test - skipped unless real credentials are configured.
+    This prevents sending arbitrary credentials to the live CSES server.
+    """
     response = client.post(
         "/auth/session",
-        json={"username": "invalid", "password": "wrong"},
+        json={"username": "invalid_user_for_test", "password": "wrong_password_for_test"},
     )
     assert response.status_code == 401
 
