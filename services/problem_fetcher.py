@@ -170,34 +170,40 @@ class ProblemFetcher:
     async def fetch_categories(
         self, client: httpx.AsyncClient
     ) -> List[ProblemCategory]:
-        """Fetch all problem categories."""
+        """Fetch all problem categories using single-pass DOM traversal."""
         response = await client.get("/problemset")
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, "html.parser")
-        categories = []
-        seen = set()
 
-        # Categories are in h2 tags, count tasks after each h2
+        # Single pass: track current category and collect unique problem IDs
+        category_problems: dict[str, set[str]] = {}
+        current_category: str | None = None
+        seen_categories: set[str] = set()
+
+        for elem in soup.find_all(["h2", "a"]):
+            if elem.name == "h2":
+                name = elem.get_text(strip=True)
+                if name not in seen_categories:
+                    seen_categories.add(name)
+                    category_problems[name] = set()
+                current_category = name
+            elif current_category and elem.get("href"):
+                href = elem["href"]
+                if "/problemset/task/" in href:
+                    problem_id = href.split("/")[-1]
+                    category_problems[current_category].add(problem_id)
+
+        categories = []
+        seen_in_output: set[str] = set()
         for h2 in soup.find_all("h2"):
             name = h2.get_text(strip=True)
-            if name in seen:
+            if name in seen_in_output:
                 continue
-            seen.add(name)
-
-            # Count unique problems in this category
-            problem_ids = set()
-            for elem in h2.find_next_siblings():
-                for link in elem.find_all(
-                    "a", href=lambda x: x and "/problemset/task/" in str(x)
-                ):
-                    href = link["href"]
-                    problem_id = href.split("/")[-1]
-                    problem_ids.add(problem_id)
-
+            seen_in_output.add(name)
             slug = name.lower().replace(" ", "-")
             categories.append(
-                ProblemCategory(name=name, slug=slug, problem_count=len(problem_ids))
+                ProblemCategory(name=name, slug=slug, problem_count=len(category_problems.get(name, set())))
             )
 
         return categories
