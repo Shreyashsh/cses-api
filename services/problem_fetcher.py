@@ -22,6 +22,12 @@ class ProblemFetcher:
     def _get_cache_path(self, problem_id: str) -> Path:
         return self.cache_dir / f"{problem_id}.json"
 
+    def _get_category_cache_path(self, category_slug: str) -> Path:
+        return self.cache_dir / f"cat_{category_slug}.json"
+
+    def _get_categories_list_path(self) -> Path:
+        return self.cache_dir / "_categories_list.json"
+
     def _is_cache_valid(self, cache_path: Path, max_age_hours: int = 24) -> bool:
         if not cache_path.exists():
             return False
@@ -138,7 +144,15 @@ class ProblemFetcher:
     async def fetch_category_problems(
         self, client: httpx.AsyncClient, category_slug: str
     ) -> List[dict]:
-        """Fetch list of problems in a category by filtering from the main problemset page."""
+        """Fetch list of problems in a category by filtering from the main problemset page, with caching."""
+        cache_path = self._get_category_cache_path(category_slug)
+        if self._is_cache_valid(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except (json.JSONDecodeError, ValueError):
+                cache_path.unlink(missing_ok=True)
+
         response = await client.get("/problemset")
         response.raise_for_status()
 
@@ -165,12 +179,36 @@ class ProblemFetcher:
                                 problems.append({"id": problem_id, "title": title})
                 break
 
+        # Cache the result
+        self._save_category_problems_to_cache(cache_path, problems)
         return problems
+
+    def _save_category_problems_to_cache(
+        self, cache_path: Path, problems: List[dict]
+    ) -> None:
+        """Save category problems to cache atomically."""
+        fd, tmp_path = tempfile.mkstemp(dir=self.cache_dir, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(problems, f, indent=2, default=str)
+            os.replace(tmp_path, cache_path)
+        except Exception:
+            os.unlink(tmp_path)
+            raise
 
     async def fetch_categories(
         self, client: httpx.AsyncClient
     ) -> List[ProblemCategory]:
-        """Fetch all problem categories using single-pass DOM traversal."""
+        """Fetch all problem categories using single-pass DOM traversal with caching."""
+        cache_path = self._get_categories_list_path()
+        if self._is_cache_valid(cache_path):
+            try:
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return [ProblemCategory(**item) for item in data]
+            except (json.JSONDecodeError, ValueError):
+                cache_path.unlink(missing_ok=True)
+
         response = await client.get("/problemset")
         response.raise_for_status()
 
@@ -206,4 +244,19 @@ class ProblemFetcher:
                 ProblemCategory(name=name, slug=slug, problem_count=len(category_problems.get(name, set())))
             )
 
+        # Cache the result
+        self._save_categories_to_cache(categories)
         return categories
+
+    def _save_categories_to_cache(self, categories: List[ProblemCategory]) -> None:
+        """Save category list to cache atomically."""
+        cache_path = self._get_categories_list_path()
+        data = [cat.model_dump() for cat in categories]
+        fd, tmp_path = tempfile.mkstemp(dir=self.cache_dir, suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, default=str)
+            os.replace(tmp_path, cache_path)
+        except Exception:
+            os.unlink(tmp_path)
+            raise
