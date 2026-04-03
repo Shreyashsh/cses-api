@@ -56,7 +56,7 @@ class ProblemFetcher:
             os.unlink(tmp_path)
             raise
 
-    def parse_problem_page(self, html: str, category: str) -> Problem:
+    def parse_problem_page(self, html: str, category: str, problem_id: str) -> Problem:
         """Parse CSES problem HTML into Problem model."""
         soup = BeautifulSoup(html, "html.parser")
 
@@ -94,7 +94,7 @@ class ProblemFetcher:
             )
 
         return Problem(
-            id="unknown",  # Problem ID comes from URL, not page
+            id=problem_id,
             title=title,
             category=category,
             description=description,
@@ -117,8 +117,7 @@ class ProblemFetcher:
         response = await client.get(url)
         response.raise_for_status()
 
-        problem = self.parse_problem_page(response.text, category)
-        problem.id = problem_id  # Set ID from URL since page doesn't contain it
+        problem = self.parse_problem_page(response.text, category, problem_id)
         self.save_to_cache(problem)
         return problem
 
