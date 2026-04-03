@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -13,6 +14,9 @@ logger = logging.getLogger("cses_api.progress")
 router = APIRouter(prefix="/progress", tags=["Progress"])
 
 _progress_tracker = None
+
+# Submission IDs follow pattern: {problem_id}_{timestamp}_{uuid_hex}
+SUBMISSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
 
 
 def set_progress_tracker(tracker):
@@ -50,6 +54,12 @@ async def get_submission(
     params: UserIdParam = Depends(validate_user_id),
 ):
     """Get specific submission by ID."""
+    if not SUBMISSION_ID_PATTERN.match(submission_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid submission_id format.",
+        )
+
     logger.info(f"Fetching submission {submission_id} for user: {params.user_id}")
     submission = _progress_tracker.get_submission_by_id(params.user_id, submission_id)
     if not submission:

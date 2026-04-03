@@ -54,7 +54,7 @@ async def test_submit_solution_success(client, mock_services):
 
     files = {"file": ("solution.cpp", BytesIO(b"// solution"), "text/x-c++src")}
 
-    response = client.post("/problems/apio/submit?user_id=test_user", files=files)
+    response = client.post("/problems/1234/submit?user_id=test_user", files=files)
 
     assert response.status_code == 200
     data = response.json()
@@ -69,7 +69,7 @@ async def test_submit_solution_network_error(client, mock_services):
 
     files = {"file": ("solution.cpp", BytesIO(b"// solution"), "text/x-c++src")}
 
-    response = client.post("/problems/apio/submit?user_id=test_user", files=files)
+    response = client.post("/problems/1234/submit?user_id=test_user", files=files)
 
     assert response.status_code == 502
 
@@ -78,7 +78,7 @@ async def test_submit_solution_network_error(client, mock_services):
 async def test_submit_solution_no_file(client, mock_services):
     """Should return 400 when no file provided."""
     response = client.post(
-        "/problems/apio/submit?user_id=test_user", data={"language": "python3"}
+        "/problems/1234/submit?user_id=test_user", data={"language": "python3"}
     )
 
     assert response.status_code == 400

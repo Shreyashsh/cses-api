@@ -1,6 +1,7 @@
 import logging
 import os
-from pathlib import Path
+import re
+from pathlib import Path as FilePath
 from typing import Optional
 
 from fastapi import (
@@ -9,6 +10,7 @@ from fastapi import (
     File,
     Form,
     HTTPException,
+    Path,
     Request,
     UploadFile,
     status,
@@ -39,6 +41,9 @@ ALLOWED_EXTENSIONS = {
     ".cs",
     ".pas",
 }
+
+# CSES problem IDs are numeric
+PROBLEM_ID_PATTERN = re.compile(r"^\d{1,10}$")
 
 
 def set_services(manager, submitter, tracker):
@@ -76,6 +81,12 @@ async def submit_solution(
     client=Depends(get_client_and_user),
 ):
     """Submit solution file to CSES."""
+    if not PROBLEM_ID_PATTERN.match(problem_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid problem_id format. Only numeric IDs are allowed.",
+        )
+
     logger.info(f"Submitting solution for problem: {problem_id}, language: {language}")
     if not file:
         logger.warning(f"No file provided for problem: {problem_id}")
@@ -95,7 +106,7 @@ async def submit_solution(
                 detail=f"File too large. Maximum size is {MAX_FILE_SIZE // 1024}KB.",
             )
 
-        ext = Path(filename).suffix.lower()
+        ext = FilePath(filename).suffix.lower()
         if ext and ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
