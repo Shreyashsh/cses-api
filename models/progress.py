@@ -18,3 +18,4 @@ class UserProgress(BaseModel):
     total_solved: int
     solved_problems: List[str]
     recent_submissions: List[Submission]
+    last_updated: datetime

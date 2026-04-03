@@ -1,7 +1,8 @@
 import logging
+import re
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
 from limiter import limiter
 from models.problem import Problem, ProblemCategory, ProblemList
@@ -13,6 +14,9 @@ router = APIRouter(prefix="/problems", tags=["Problems"])
 
 _session_manager = None
 _problem_fetcher = None
+
+# Validate category: alphanumeric with hyphens, no path traversal
+CATEGORY_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-_]*$")
 
 
 def set_services(manager, fetcher):
@@ -57,8 +61,17 @@ async def list_categories(request: Request, client=Depends(get_client)):
 
 @router.get("/{category}", response_model=ProblemList)
 @limiter.limit("30/minute")
-async def list_problems(request: Request, category: str, client=Depends(get_client)):
+async def list_problems(
+    request: Request,
+    category: str = Path(..., min_length=1, max_length=100),
+    client=Depends(get_client),
+):
     """List all problems in a category."""
+    if not CATEGORY_PATTERN.match(category):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid category format. Only alphanumeric characters, hyphens, and underscores are allowed.",
+        )
     logger.info(f"Fetching problems for category: {category}")
     try:
         problems = await _problem_fetcher.fetch_category_problems(client, category)
@@ -76,11 +89,16 @@ async def list_problems(request: Request, category: str, client=Depends(get_clie
 @limiter.limit("30/minute")
 async def get_problem(
     request: Request,
-    category: str,
-    problem_id: str,
+    category: str = Path(..., min_length=1, max_length=100),
+    problem_id: str = Path(..., min_length=1, max_length=100),
     client=Depends(get_client),
 ):
     """Fetch problem details (cached)."""
+    if not CATEGORY_PATTERN.match(category):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid category format. Only alphanumeric characters, hyphens, and underscores are allowed.",
+        )
     logger.info(f"Fetching problem {problem_id} in category: {category}")
     try:
         problem = await _problem_fetcher.fetch_problem(client, problem_id, category)

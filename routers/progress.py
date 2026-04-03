@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 
@@ -36,6 +37,7 @@ async def get_progress(
             total_solved=0,
             solved_problems=[],
             recent_submissions=[],
+            last_updated=datetime.now(timezone.utc),
         )
     return progress
 

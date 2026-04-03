@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
+import asyncio
 import httpx
+from bs4 import BeautifulSoup
 
 
 class SessionManager:
@@ -14,8 +16,6 @@ class SessionManager:
 
     async def create_session(self, user_id: str, username: str, password: str) -> bool:
         """Initialize CSES session with credentials."""
-        import re
-
         client = httpx.AsyncClient(
             base_url=self.base_url,
             cookies=httpx.Cookies(),
@@ -26,39 +26,43 @@ class SessionManager:
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
         )
 
-        # Fetch login page to get CSRF token
-        login_page = await client.get("/login")
+        try:
+            # Fetch login page to get CSRF token
+            login_page = await client.get("/login")
+            if login_page.status_code != 200:
+                await client.aclose()
+                return False
 
-        # Extract CSRF token from form
-        csrf_match = re.search(
-            r'<input[^>]*name="csrf_token"[^>]*value="([^"]*)"',
-            login_page.text,
-            re.IGNORECASE,
-        )
-        if not csrf_match:
-            await client.aclose()
-            return False
+            # Extract CSRF token using BeautifulSoup (more robust than regex)
+            soup = BeautifulSoup(login_page.text, "html.parser")
+            csrf_input = soup.find("input", {"name": "csrf_token"})
+            if not csrf_input or not csrf_input.get("value"):
+                await client.aclose()
+                return False
 
-        csrf_token = csrf_match.group(1)
+            csrf_token = csrf_input["value"]
 
-        # Attempt login with correct field names (nick, pass)
-        response = await client.post(
-            "/login",
-            data={
-                "csrf_token": csrf_token,
-                "nick": username,
-                "pass": password,
-            },
-            follow_redirects=True,
-        )
-
-        # Check if login succeeded by looking for logout link
-        if response.status_code == 200 and "logout" in response.text.lower():
-            self.sessions[user_id] = client
-            self.session_expiry[user_id] = datetime.now(timezone.utc) + timedelta(
-                hours=2
+            # Attempt login with correct field names (nick, pass)
+            response = await client.post(
+                "/login",
+                data={
+                    "csrf_token": csrf_token,
+                    "nick": username,
+                    "pass": password,
+                },
+                follow_redirects=True,
             )
-            return True
+
+            # Check if login succeeded by looking for logout link
+            if response.status_code == 200 and "logout" in response.text.lower():
+                self.sessions[user_id] = client
+                self.session_expiry[user_id] = datetime.now(timezone.utc) + timedelta(
+                    hours=2
+                )
+                return True
+
+        except Exception:
+            pass  # Fall through to cleanup
 
         await client.aclose()
         return False
@@ -73,13 +77,12 @@ class SessionManager:
             client = self.sessions.pop(user_id, None)
             self.session_expiry.pop(user_id, None)
             if client:
-                import asyncio
-
                 try:
-                    asyncio.get_running_loop()
-                    asyncio.create_task(client.aclose())
+                    loop = asyncio.get_running_loop()
+                    loop.create_task(client.aclose())
                 except RuntimeError:
-                    pass
+                    # No running loop; schedule close on next available loop
+                    asyncio.ensure_future(client.aclose())
             return None
 
         return self.sessions[user_id]

@@ -22,6 +22,13 @@ class SessionRequest(BaseModel):
     username: str
     password: SecretStr
 
+    # Prevent accidental logging of password
+    def __repr__(self):
+        return f"SessionRequest(username={self.username!r}, password=SecretStr('**********'))"
+
+    def __str__(self):
+        return self.__repr__()
+
 
 class SessionResponse(BaseModel):
     user_id: str

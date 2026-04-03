@@ -60,45 +60,41 @@ class ProblemFetcher:
         """Parse CSES problem HTML into Problem model."""
         soup = BeautifulSoup(html, "html.parser")
 
-        # Extract problem ID from URL or content
-        url_elem = soup.find("meta", {"property": "og:url"})
-        problem_id = url_elem["content"].split("/")[-1] if url_elem else "unknown"
-
-        # Extract title
+        # Extract title from H1
         title_elem = soup.find("h1")
         title = title_elem.get_text(strip=True) if title_elem else "Unknown"
 
-        # Extract description
-        desc_elem = soup.find("div", class_="problem-content")
+        # Extract description from <div class="md">
+        desc_elem = soup.find("div", class_="md")
         description = desc_elem.get_text(strip=True) if desc_elem else None
 
-        # Extract input/output format
+        # Extract input/output format (H1 headings with id="input"/"output")
         input_format = None
         output_format = None
-        for section in soup.find_all("h3"):
-            text = section.get_text(strip=True).lower()
-            if "input" in text:
-                input_elem = section.find_next_sibling()
-                input_format = input_elem.get_text(strip=True) if input_elem else None
-            elif "output" in text:
-                output_elem = section.find_next_sibling()
-                output_format = (
-                    output_elem.get_text(strip=True) if output_elem else None
-                )
+        if desc_elem:
+            input_h1 = desc_elem.find("h1", id="input")
+            if input_h1:
+                input_p = input_h1.find_next_sibling("p")
+                input_format = input_p.get_text(strip=True) if input_p else None
 
-        # Extract examples
+            output_h1 = desc_elem.find("h1", id="output")
+            if output_h1:
+                output_p = output_h1.find_next_sibling("p")
+                output_format = output_p.get_text(strip=True) if output_p else None
+
+        # Extract examples from <pre> tags
         examples = []
-        for example in soup.find_all("div", class_="example"):
-            ex_data = {"input": "", "output": ""}
-            pre_tags = example.find_all("pre")
-            if len(pre_tags) >= 2:
-                ex_data["input"] = pre_tags[0].get_text(strip=True)
-                ex_data["output"] = pre_tags[1].get_text(strip=True)
-            if ex_data["input"] or ex_data["output"]:
-                examples.append(ex_data)
+        pre_tags = desc_elem.find_all("pre") if desc_elem else []
+        if len(pre_tags) >= 2:
+            examples.append(
+                {
+                    "input": pre_tags[0].get_text(strip=True),
+                    "output": pre_tags[1].get_text(strip=True),
+                }
+            )
 
         return Problem(
-            id=problem_id,
+            id="unknown",  # Problem ID comes from URL, not page
             title=title,
             category=category,
             description=description,
@@ -122,6 +118,7 @@ class ProblemFetcher:
         response.raise_for_status()
 
         problem = self.parse_problem_page(response.text, category)
+        problem.id = problem_id  # Set ID from URL since page doesn't contain it
         self.save_to_cache(problem)
         return problem
 
@@ -142,11 +139,34 @@ class ProblemFetcher:
     async def fetch_category_problems(
         self, client: httpx.AsyncClient, category_slug: str
     ) -> List[dict]:
-        """Fetch list of problems in a category."""
-        url = f"/problemset/category/{category_slug}"
-        response = await client.get(url)
+        """Fetch list of problems in a category by filtering from the main problemset page."""
+        response = await client.get("/problemset")
         response.raise_for_status()
-        return self.parse_category_page(response.text, category_slug)
+
+        soup = BeautifulSoup(response.text, "html.parser")
+        problems = []
+
+        # Find category heading and collect problems under it
+        for h2 in soup.find_all("h2"):
+            heading_text = h2.get_text(strip=True)
+            heading_slug = heading_text.lower().replace(" ", "-")
+
+            if heading_slug == category_slug:
+                # Problems are in the next <ul class="task-list">
+                task_list = h2.find_next_sibling("ul", class_="task-list")
+                if task_list:
+                    for li in task_list.find_all("li"):
+                        link = li.find("a")
+                        if link and link.get("href"):
+                            href = link["href"]
+                            # Extract problem ID from URL
+                            if "/problemset/task/" in href:
+                                problem_id = href.split("/")[-1]
+                                title = link.get_text(strip=True)
+                                problems.append({"id": problem_id, "title": title})
+                break
+
+        return problems
 
     async def fetch_categories(
         self, client: httpx.AsyncClient

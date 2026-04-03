@@ -1,6 +1,6 @@
 import logging
 import os
-from typing import Optional
+from pathlib import Path
 from typing import Optional
 
 from fastapi import (
@@ -25,20 +25,6 @@ router = APIRouter(prefix="/problems", tags=["Submissions"])
 _session_manager = None
 _solution_submitter = None
 _progress_tracker = None
-
-MAX_FILE_SIZE = 1024 * 1024  # 1MB
-ALLOWED_EXTENSIONS = {
-    ".py",
-    ".cpp",
-    ".c",
-    ".java",
-    ".js",
-    ".rs",
-    ".go",
-    ".rb",
-    ".cs",
-    ".pas",
-}
 
 MAX_FILE_SIZE = 1024 * 1024  # 1MB
 ALLOWED_EXTENSIONS = {
@@ -99,7 +85,8 @@ async def submit_solution(
         )
 
     try:
-        file_content = await file.read()
+        # Read only up to MAX_FILE_SIZE + 1 bytes to detect oversized files
+        file_content = await file.read(MAX_FILE_SIZE + 1)
         filename = file.filename or "solution.py"
 
         if len(file_content) > MAX_FILE_SIZE:
@@ -108,9 +95,7 @@ async def submit_solution(
                 detail=f"File too large. Maximum size is {MAX_FILE_SIZE // 1024}KB.",
             )
 
-        import os
-
-        ext = os.path.splitext(filename)[1].lower()
+        ext = Path(filename).suffix.lower()
         if ext and ext not in ALLOWED_EXTENSIONS:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -127,7 +112,7 @@ async def submit_solution(
 
         await _progress_tracker.add_submission(params.user_id, submission)
         logger.info(
-            f"Submission successful for problem {problem_id}: {submission.submission_id}"
+            f"Submission successful for problem {problem_id}: {submission.id}"
         )
 
         return submission

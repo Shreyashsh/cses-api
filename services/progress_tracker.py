@@ -22,25 +22,25 @@ class ProgressTracker:
     def get_progress(self, user_id: str) -> Optional[Progress]:
         return self.progress.get(user_id)
 
-    def create_progress(self, user_id: str) -> Progress:
-        progress = Progress(user_id=user_id)
-        self.progress[user_id] = progress
-        return progress
+    def _ensure_progress(self, user_id: str) -> Progress:
+        """Get or create Progress for user. Should be called within a lock."""
+        if user_id not in self.progress:
+            progress = Progress(user_id=user_id)
+            self.progress[user_id] = progress
+        return self.progress[user_id]
 
     async def add_submission(self, user_id: str, submission: Submission) -> None:
         """Add submission thread-safely using per-user locks."""
         lock = self._get_lock(user_id)
         async with lock:
-            if user_id not in self.progress:
-                self.create_progress(user_id)
-
-            self.progress[user_id].submissions.append(submission)
+            progress = self._ensure_progress(user_id)
+            progress.submissions.append(submission)
 
             if submission.verdict.status == "Accepted":
-                if submission.problem_id not in self.progress[user_id].solved:
-                    self.progress[user_id].solved.append(submission.problem_id)
+                if submission.problem_id not in progress.solved:
+                    progress.solved.append(submission.problem_id)
 
-            self.progress[user_id].last_updated = datetime.now(timezone.utc)
+            progress.last_updated = datetime.now(timezone.utc)
 
     def get_user_progress(self, user_id: str) -> Optional[UserProgress]:
         progress = self.progress.get(user_id)
@@ -52,6 +52,7 @@ class ProgressTracker:
             total_solved=len(progress.solved),
             solved_problems=progress.solved,
             recent_submissions=progress.submissions[-10:],
+            last_updated=progress.last_updated,
         )
 
     def get_submission_by_id(
