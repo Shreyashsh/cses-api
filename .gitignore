@@ -1,6 +1,7 @@
 __pycache__/
 *.pyc
 .env
+config
 cache/problems/*.json
 
 .qwen/

@@ -6,6 +6,8 @@ from pathlib import Path
 from uuid import uuid4
 
 from dotenv import load_dotenv
+
+load_dotenv("config")
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
