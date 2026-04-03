@@ -1,5 +1,6 @@
-import pytest
 import httpx
+import pytest
+
 from services.session_manager import SessionManager
 
 

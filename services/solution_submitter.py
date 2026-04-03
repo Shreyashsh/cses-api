@@ -1,12 +1,11 @@
 import asyncio
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from bs4 import BeautifulSoup
 
 from models.submission import Submission, SubmissionVerdict
-
 
 # Terminal verdicts that indicate final judging state (case-insensitive)
 TERMINAL_VERDICTS = {
@@ -176,6 +175,7 @@ class SolutionSubmitter:
             response = await client.get(url)
             if response.status_code != 200:
                 import logging
+
                 logger = logging.getLogger("cses_api.submitter")
                 logger.warning(
                     f"Failed to fetch result URL {url}: status {response.status_code}"
@@ -190,6 +190,7 @@ class SolutionSubmitter:
             return await self._parse_submission(response.text, problem_id, language)
         except Exception as e:
             import logging
+
             logger = logging.getLogger("cses_api.submitter")
             logger.warning(f"Error fetching result URL {url}: {e}")
             return Submission(

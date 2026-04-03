@@ -1,5 +1,7 @@
-import pytest
 import asyncio
+
+import pytest
+
 from services.solution_submitter import SolutionSubmitter
 
 

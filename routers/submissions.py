@@ -111,9 +111,7 @@ async def submit_solution(
         )
 
         await _progress_tracker.add_submission(params.user_id, submission)
-        logger.info(
-            f"Submission successful for problem {problem_id}: {submission.id}"
-        )
+        logger.info(f"Submission successful for problem {problem_id}: {submission.id}")
 
         return submission
     except Exception as e:

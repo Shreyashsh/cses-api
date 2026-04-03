@@ -1,6 +1,7 @@
-import pytest
-from services.retry import retry_async
 import httpx
+import pytest
+
+from services.retry import retry_async
 
 
 @pytest.mark.asyncio

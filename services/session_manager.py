@@ -1,7 +1,7 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Dict, Optional
 
-import asyncio
 import httpx
 from bs4 import BeautifulSoup
 

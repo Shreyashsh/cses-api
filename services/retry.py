@@ -1,7 +1,8 @@
 import asyncio
-import httpx
 from functools import wraps
-from typing import TypeVar, Callable, Awaitable
+from typing import Awaitable, Callable, TypeVar
+
+import httpx
 
 T = TypeVar("T")
 
