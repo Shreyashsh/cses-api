@@ -4,6 +4,7 @@ import re
 from pathlib import Path as FilePath
 from typing import Optional
 
+import httpx
 from fastapi import (
     APIRouter,
     Depends,
@@ -53,7 +54,9 @@ def set_services(manager, submitter, tracker):
     _progress_tracker = tracker
 
 
-def get_client_and_user(params: UserIdParam = Depends(validate_user_id)):
+def get_client_and_user(
+    params: UserIdParam = Depends(validate_user_id),
+) -> httpx.AsyncClient:
     if not _session_manager:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

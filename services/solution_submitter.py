@@ -22,15 +22,19 @@ TERMINAL_VERDICTS = {
     "testing",  # Initial state
 }
 
-POLL_INTERVAL = 2.0  # seconds between polls
-POLL_TIMEOUT = 30.0  # maximum seconds to wait for verdict
-MAX_RETRIES = 3  # maximum retries for fetching submit page
-
 
 class SolutionSubmitter:
     """Submits solutions to CSES."""
 
-    def __init__(self):
+    def __init__(
+        self,
+        poll_interval: float = 2.0,
+        poll_timeout: float = 30.0,
+        max_retries: int = 3,
+    ):
+        self.poll_interval = poll_interval
+        self.poll_timeout = poll_timeout
+        self.max_retries = max_retries
         self.language_map = {
             "python3": "Python3",
             "python": "Python3",
@@ -66,14 +70,14 @@ class SolutionSubmitter:
 
         # Retry fetching the submit page for the CSRF token
         last_error = None
-        for attempt in range(MAX_RETRIES):
+        for attempt in range(self.max_retries):
             try:
                 response = await client.get(submit_page_url)
                 response.raise_for_status()
                 break
             except Exception as e:
                 last_error = e
-                if attempt < MAX_RETRIES - 1:
+                if attempt < self.max_retries - 1:
                     await asyncio.sleep(1.0 * (attempt + 1))
                 continue
         else:
@@ -143,7 +147,7 @@ class SolutionSubmitter:
 
         while True:
             elapsed = loop.time() - start_time
-            if elapsed >= POLL_TIMEOUT:
+            if elapsed >= self.poll_timeout:
                 return Submission(
                     id=self._generate_submission_id(problem_id),
                     problem_id=problem_id,
@@ -165,7 +169,7 @@ class SolutionSubmitter:
             if submission.verdict.status.lower() in TERMINAL_VERDICTS:
                 return submission
 
-            await asyncio.sleep(POLL_INTERVAL)
+            await asyncio.sleep(self.poll_interval)
 
     async def _parse_submission_from_url(
         self, client, url: str, problem_id: str, language: str
@@ -241,6 +245,16 @@ class SolutionSubmitter:
             verdict_elem = soup.find("div", class_="verdict")
             if verdict_elem:
                 verdict_status = verdict_elem.get_text(strip=True)
+
+        # Log when verdict parsing fails to find expected elements
+        if not verdict_status or verdict_status == "Pending":
+            import logging
+
+            logger = logging.getLogger("cses_api.submitter")
+            logger.warning(
+                f"Could not parse verdict from submission page for problem {problem_id}. "
+                f"Status={status!r}, Result={result!r}. HTML may have changed."
+            )
 
         submission_id = self._generate_submission_id(problem_id)
 

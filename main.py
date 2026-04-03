@@ -48,6 +48,12 @@ async def lifespan(app: FastAPI):
     solution_submitter = SolutionSubmitter()
     progress_tracker = ProgressTracker()
 
+    # Configure trusted proxies for X-Forwarded-For (empty = no proxy trusted)
+    proxies = os.getenv("TRUSTED_PROXIES", "")
+    app.state.trusted_proxies = {
+        p.strip() for p in proxies.split(",") if p.strip()
+    } if proxies else set()
+
     auth.set_session_manager(session_manager)
     problems.set_services(session_manager, problem_fetcher)
     submissions.set_services(session_manager, solution_submitter, progress_tracker)

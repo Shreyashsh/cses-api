@@ -1,5 +1,5 @@
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pytest
 
@@ -10,7 +10,7 @@ from services.progress_tracker import ProgressTracker
 def create_submission(problem_id: str, status: str = "Accepted") -> Submission:
     """Helper to create a submission."""
     return Submission(
-        id=f"sub_{problem_id}_{datetime.utcnow().timestamp()}",
+        id=f"sub_{problem_id}_{datetime.now(timezone.utc).timestamp()}",
         problem_id=problem_id,
         language="python3",
         verdict=SubmissionVerdict(status=status),

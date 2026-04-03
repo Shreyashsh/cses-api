@@ -9,6 +9,8 @@ from models.submission import Submission
 class ProgressTracker:
     """Tracks user progress in-memory."""
 
+    MAX_SUBMISSIONS_PER_USER = 1000  # Evict oldest when exceeded
+
     def __init__(self):
         self.progress: Dict[str, Progress] = {}
         self._locks: Dict[str, asyncio.Lock] = {}
@@ -33,6 +35,10 @@ class ProgressTracker:
         async with lock:
             progress = self._ensure_progress(user_id)
             progress.submissions.append(submission)
+
+            # Evict oldest submissions when limit exceeded to bound memory
+            if len(progress.submissions) > self.MAX_SUBMISSIONS_PER_USER:
+                progress.submissions = progress.submissions[-self.MAX_SUBMISSIONS_PER_USER:]
 
             if submission.verdict.status == "Accepted":
                 if submission.problem_id not in progress.solved:

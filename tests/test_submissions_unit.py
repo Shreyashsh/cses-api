@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -49,7 +49,7 @@ async def test_submit_solution_success(client, mock_services):
     mock_submission.language = "C++"
     mock_submission.file_path = None
     mock_submission.verdict = {"status": "Judging"}
-    mock_submission.submitted_at = datetime.utcnow()
+    mock_submission.submitted_at = datetime.now(timezone.utc)
     mock_solution_submitter.submit_file.return_value = mock_submission
 
     files = {"file": ("solution.cpp", BytesIO(b"// solution"), "text/x-c++src")}

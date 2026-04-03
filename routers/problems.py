@@ -2,6 +2,7 @@ import logging
 import re
 from typing import List
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Path, Request, status
 
 from limiter import limiter
@@ -25,7 +26,7 @@ def set_services(manager, fetcher):
     _problem_fetcher = fetcher
 
 
-def get_client(params: UserIdParam = Depends(validate_user_id)):
+def get_client(params: UserIdParam = Depends(validate_user_id)) -> httpx.AsyncClient:
     if not _session_manager:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
