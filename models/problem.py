@@ -24,6 +24,7 @@ class ProblemCategory(BaseModel):
 
 class ProblemSummary(BaseModel):
     """Lightweight problem info for listings."""
+
     id: str
     title: str
 

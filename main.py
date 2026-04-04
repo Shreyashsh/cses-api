@@ -15,9 +15,13 @@ from slowapi.errors import RateLimitExceeded
 
 # Patch JSON encoder to preserve Unicode
 _original_json_dumps = json.dumps
+
+
 def _utf8_json_dumps(*args, **kwargs):
     kwargs.setdefault("ensure_ascii", False)
     return _original_json_dumps(*args, **kwargs)
+
+
 json.dumps = _utf8_json_dumps
 
 from limiter import limiter

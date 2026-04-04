@@ -68,7 +68,7 @@ class ProblemFetcher:
         """Clean LaTeX syntax from text."""
         if not text:
             return text
-        
+
         # Clean up LaTeX patterns
         replacements = [
             ("\\rightarrow", " -> "),
@@ -90,10 +90,10 @@ class ProblemFetcher:
             ("}", ""),
             ("_", ""),  # Remove subscripts
         ]
-        
+
         for old, new in replacements:
             text = text.replace(old, new)
-        
+
         return text
 
     def _extract_clean_text(self, soup) -> str:
@@ -114,14 +114,14 @@ class ProblemFetcher:
                 text = elem.get_text(separator=" ", strip=True)
                 if text:
                     # Clean up extra spaces before punctuation
-                    text = re.sub(r'\s+([.,;:!?)])', r'\1', text)
+                    text = re.sub(r"\s+([.,;:!?)])", r"\1", text)
                     # Final LaTeX cleanup for any remaining patterns
                     text = self._clean_latex(text)
                     lines.append(text)
             elif hasattr(elem, "get_text"):
                 text = elem.get_text(separator=" ", strip=True)
                 if text:
-                    text = re.sub(r'\s+([.,;:!?)])', r'\1', text)
+                    text = re.sub(r"\s+([.,;:!?)])", r"\1", text)
                     text = self._clean_latex(text)
                     lines.append(text)
             elif isinstance(elem, str):
@@ -134,8 +134,8 @@ class ProblemFetcher:
     def parse_problem_page(self, html: str, category: str, problem_id: str) -> Problem:
         """Parse CSES problem HTML into Problem model."""
         # Fix encoding issues - ensure proper UTF-8
-        html = html.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
-        
+        html = html.encode("utf-8", errors="replace").decode("utf-8", errors="replace")
+
         soup = BeautifulSoup(html, "html.parser")
 
         # Extract title from H1
@@ -148,11 +148,11 @@ class ProblemFetcher:
         if desc_elem:
             # Create a working copy
             desc_clone = BeautifulSoup(str(desc_elem), "html.parser")
-            
+
             # Remove <pre> blocks (examples) from description
             for pre in desc_clone.find_all("pre"):
                 pre.decompose()
-            
+
             # Remove everything from "Input" heading onwards
             input_heading = desc_clone.find("h1", id="input")
             if input_heading:
@@ -163,7 +163,7 @@ class ProblemFetcher:
                     elem = elem.find_next_sibling()
                 for elem in to_remove:
                     elem.decompose()
-            
+
             description = self._extract_clean_text(desc_clone)
 
         # Extract input/output format as clean text
@@ -282,7 +282,9 @@ class ProblemFetcher:
                             if "/problemset/task/" in href:
                                 problem_id = href.split("/")[-1]
                                 title = link.get_text(strip=True)
-                                problems.append(ProblemSummary(id=problem_id, title=title))
+                                problems.append(
+                                    ProblemSummary(id=problem_id, title=title)
+                                )
                 break
 
         # Cache the result
