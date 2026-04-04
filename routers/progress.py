@@ -13,25 +13,25 @@ logger = logging.getLogger("cses_api.progress")
 
 router = APIRouter(prefix="/progress", tags=["Progress"])
 
-_progress_tracker = None
-
 # Submission IDs follow pattern: {problem_id}_{timestamp}.{microseconds}_{uuid_hex}
 SUBMISSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_.\-]{1,128}$")
 
 
-def set_progress_tracker(tracker):
-    global _progress_tracker
-    _progress_tracker = tracker
+def get_progress_tracker(request: Request):
+    """Get progress tracker from app state."""
+    return request.app.state.progress_tracker
 
 
 @router.get("", response_model=UserProgress)
 @limiter.limit("30/minute")
 async def get_progress(
-    request: Request, params: UserIdParam = Depends(validate_user_id)
+    request: Request,
+    params: UserIdParam = Depends(validate_user_id),
+    progress_tracker=Depends(get_progress_tracker),
 ):
     """Get user progress."""
     logger.info(f"Fetching progress for user: {params.user_id}")
-    progress = _progress_tracker.get_user_progress(params.user_id)
+    progress = progress_tracker.get_user_progress(params.user_id)
     if not progress:
         logger.info(
             f"No progress found for user: {params.user_id}, returning empty progress"
@@ -52,6 +52,7 @@ async def get_submission(
     request: Request,
     submission_id: str,
     params: UserIdParam = Depends(validate_user_id),
+    progress_tracker=Depends(get_progress_tracker),
 ):
     """Get specific submission by ID."""
     if not SUBMISSION_ID_PATTERN.match(submission_id):
@@ -61,7 +62,7 @@ async def get_submission(
         )
 
     logger.info(f"Fetching submission {submission_id} for user: {params.user_id}")
-    submission = _progress_tracker.get_submission_by_id(params.user_id, submission_id)
+    submission = progress_tracker.get_submission_by_id(params.user_id, submission_id)
     if not submission:
         logger.warning(
             f"Submission {submission_id} not found for user: {params.user_id}"

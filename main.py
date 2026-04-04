@@ -31,16 +31,8 @@ logger = logging.getLogger("cses_api")
 logger.setLevel(logging.INFO)
 
 
-session_manager = None
-problem_fetcher = None
-solution_submitter = None
-progress_tracker = None
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global session_manager, problem_fetcher, solution_submitter, progress_tracker
-
     session_manager = SessionManager(
         base_url=os.getenv("CSES_BASE_URL", "https://cses.fi")
     )
@@ -48,16 +40,17 @@ async def lifespan(app: FastAPI):
     solution_submitter = SolutionSubmitter()
     progress_tracker = ProgressTracker()
 
+    # Store services in app.state for dependency injection
+    app.state.session_manager = session_manager
+    app.state.problem_fetcher = problem_fetcher
+    app.state.solution_submitter = solution_submitter
+    app.state.progress_tracker = progress_tracker
+
     # Configure trusted proxies for X-Forwarded-For (empty = no proxy trusted)
     proxies = os.getenv("TRUSTED_PROXIES", "")
     app.state.trusted_proxies = (
         {p.strip() for p in proxies.split(",") if p.strip()} if proxies else set()
     )
-
-    auth.set_session_manager(session_manager)
-    problems.set_services(session_manager, problem_fetcher)
-    submissions.set_services(session_manager, solution_submitter, progress_tracker)
-    progress.set_progress_tracker(progress_tracker)
 
     yield
 
