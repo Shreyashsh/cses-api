@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import tempfile
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -8,7 +9,7 @@ from typing import Dict, List, Optional
 import httpx
 from bs4 import BeautifulSoup
 
-from models.problem import Problem, ProblemCategory
+from models.problem import Problem, ProblemCategory, ProblemSummary
 from services.retry import retry_async
 
 
@@ -62,40 +63,144 @@ class ProblemFetcher:
             os.unlink(tmp_path)
             raise
 
+    @staticmethod
+    def _clean_latex(text: str) -> str:
+        """Clean LaTeX syntax from text."""
+        if not text:
+            return text
+        
+        # Clean up LaTeX patterns
+        replacements = [
+            ("\\rightarrow", " -> "),
+            ("\\ldots", ", ..."),
+            ("\\dots", "..."),
+            ("\\leq", "<="),
+            ("\\le", "<="),
+            ("\\geq", ">="),
+            ("\\ge", ">="),
+            ("\\times", "*"),
+            ("\\div", "/"),
+            ("\\cdot", "*"),
+            ("\\frac{", ""),
+            ("\\limits", ""),
+            ("\\sum", "Σ"),
+            ("\\n", " "),
+            ("\\", ""),
+            ("{", ""),
+            ("}", ""),
+            ("_", ""),  # Remove subscripts
+        ]
+        
+        for old, new in replacements:
+            text = text.replace(old, new)
+        
+        return text
+
+    def _extract_clean_text(self, soup) -> str:
+        """Extract clean, human-readable text from a BeautifulSoup element."""
+        if not soup:
+            return ""
+
+        # First pass: replace all math spans with cleaned text
+        for math_span in soup.find_all("span", class_=lambda c: c and "math" in c):
+            raw_text = math_span.get_text(strip=True)
+            clean_text = self._clean_latex(raw_text)
+            math_span.replace_with(clean_text)
+
+        # Get text with preserved line breaks for block elements
+        lines = []
+        for elem in soup.children:
+            if elem.name in ("p", "h1", "h2", "h3", "div", "ul", "ol"):
+                text = elem.get_text(separator=" ", strip=True)
+                if text:
+                    # Clean up extra spaces before punctuation
+                    text = re.sub(r'\s+([.,;:!?)])', r'\1', text)
+                    # Final LaTeX cleanup for any remaining patterns
+                    text = self._clean_latex(text)
+                    lines.append(text)
+            elif hasattr(elem, "get_text"):
+                text = elem.get_text(separator=" ", strip=True)
+                if text:
+                    text = re.sub(r'\s+([.,;:!?)])', r'\1', text)
+                    text = self._clean_latex(text)
+                    lines.append(text)
+            elif isinstance(elem, str):
+                text = elem.strip()
+                if text:
+                    lines.append(text)
+
+        return "\n\n".join(lines) if lines else ""
+
     def parse_problem_page(self, html: str, category: str, problem_id: str) -> Problem:
         """Parse CSES problem HTML into Problem model."""
+        # Fix encoding issues - ensure proper UTF-8
+        html = html.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+        
         soup = BeautifulSoup(html, "html.parser")
 
         # Extract title from H1
         title_elem = soup.find("h1")
         title = title_elem.get_text(strip=True) if title_elem else "Unknown"
 
-        # Extract description from <div class="md">
+        # Extract description as clean text
         desc_elem = soup.find("div", class_="md")
-        description = desc_elem.get_text(strip=True) if desc_elem else None
+        description = None
+        if desc_elem:
+            # Create a working copy
+            desc_clone = BeautifulSoup(str(desc_elem), "html.parser")
+            
+            # Remove <pre> blocks (examples) from description
+            for pre in desc_clone.find_all("pre"):
+                pre.decompose()
+            
+            # Remove everything from "Input" heading onwards
+            input_heading = desc_clone.find("h1", id="input")
+            if input_heading:
+                to_remove = []
+                elem = input_heading
+                while elem:
+                    to_remove.append(elem)
+                    elem = elem.find_next_sibling()
+                for elem in to_remove:
+                    elem.decompose()
+            
+            description = self._extract_clean_text(desc_clone)
 
-        # Extract input/output format (H1 headings with id="input"/"output")
+        # Extract input/output format as clean text
         input_format = None
         output_format = None
         if desc_elem:
             input_h1 = desc_elem.find("h1", id="input")
             if input_h1:
-                input_p = input_h1.find_next_sibling("p")
-                input_format = input_p.get_text(strip=True) if input_p else None
+                parts = []
+                sibling = input_h1.find_next_sibling()
+                while sibling and sibling.name != "h1":
+                    if sibling.name in ("p", "ul", "ol"):
+                        text = sibling.get_text(separator=" ", strip=True)
+                        parts.append(self._clean_latex(text))
+                    sibling = sibling.find_next_sibling()
+                input_format = "\n".join(parts) if parts else None
 
             output_h1 = desc_elem.find("h1", id="output")
             if output_h1:
-                output_p = output_h1.find_next_sibling("p")
-                output_format = output_p.get_text(strip=True) if output_p else None
+                parts = []
+                sibling = output_h1.find_next_sibling()
+                while sibling and sibling.name != "h1":
+                    if sibling.name in ("p", "ul", "ol"):
+                        text = sibling.get_text(separator=" ", strip=True)
+                        parts.append(self._clean_latex(text))
+                    sibling = sibling.find_next_sibling()
+                output_format = "\n".join(parts) if parts else None
 
-        # Extract examples from <pre> tags
+        # Extract examples from <pre> tags - pair them as input/output
         examples = []
         pre_tags = desc_elem.find_all("pre") if desc_elem else []
-        if len(pre_tags) >= 2:
+        # Group pre tags into pairs (input, output)
+        for i in range(0, len(pre_tags) - 1, 2):
             examples.append(
                 {
-                    "input": pre_tags[0].get_text(strip=True),
-                    "output": pre_tags[1].get_text(strip=True),
+                    "input": pre_tags[i].get_text(strip=True),
+                    "output": pre_tags[i + 1].get_text(strip=True),
                 }
             )
 
@@ -143,13 +248,14 @@ class ProblemFetcher:
 
     async def fetch_category_problems(
         self, client: httpx.AsyncClient, category_slug: str
-    ) -> List[dict]:
+    ) -> List[ProblemSummary]:
         """Fetch list of problems in a category by filtering from the main problemset page, with caching."""
         cache_path = self._get_category_cache_path(category_slug)
         if self._is_cache_valid(cache_path):
             try:
                 with open(cache_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
+                    data = json.load(f)
+                    return [ProblemSummary(**item) for item in data]
             except (json.JSONDecodeError, ValueError):
                 cache_path.unlink(missing_ok=True)
 
@@ -157,7 +263,7 @@ class ProblemFetcher:
         response.raise_for_status()
 
         soup = BeautifulSoup(response.text, "html.parser")
-        problems = []
+        problems: List[ProblemSummary] = []
 
         # Find category heading and collect problems under it
         for h2 in soup.find_all("h2"):
@@ -176,7 +282,7 @@ class ProblemFetcher:
                             if "/problemset/task/" in href:
                                 problem_id = href.split("/")[-1]
                                 title = link.get_text(strip=True)
-                                problems.append({"id": problem_id, "title": title})
+                                problems.append(ProblemSummary(id=problem_id, title=title))
                 break
 
         # Cache the result
@@ -184,13 +290,14 @@ class ProblemFetcher:
         return problems
 
     def _save_category_problems_to_cache(
-        self, cache_path: Path, problems: List[dict]
+        self, cache_path: Path, problems: List[ProblemSummary]
     ) -> None:
         """Save category problems to cache atomically."""
+        data = [p.model_dump() for p in problems]
         fd, tmp_path = tempfile.mkstemp(dir=self.cache_dir, suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(problems, f, indent=2, default=str)
+                json.dump(data, f, indent=2, default=str)
             os.replace(tmp_path, cache_path)
         except Exception:
             os.unlink(tmp_path)

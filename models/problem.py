@@ -22,6 +22,12 @@ class ProblemCategory(BaseModel):
     problem_count: int
 
 
+class ProblemSummary(BaseModel):
+    """Lightweight problem info for listings."""
+    id: str
+    title: str
+
+
 class ProblemList(BaseModel):
     category: str
-    problems: List[dict]
+    problems: List[ProblemSummary]
