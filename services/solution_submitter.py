@@ -157,9 +157,7 @@ class SolutionSubmitter:
         }
 
         # Start background polling task
-        task = asyncio.create_task(
-            self._background_poll_submission(submission_id)
-        )
+        task = asyncio.create_task(self._background_poll_submission(submission_id))
         self._background_tasks[submission_id] = task
 
         return submission
@@ -193,7 +191,9 @@ class SolutionSubmitter:
                 )
 
             # Update pending record
-            self._pending_submissions[submission_id]["final_submission"] = final_submission
+            self._pending_submissions[submission_id][
+                "final_submission"
+            ] = final_submission
         except Exception as e:
             logger.error(f"Background polling failed for {submission_id}: {e}")
             error_submission = Submission(
@@ -205,7 +205,9 @@ class SolutionSubmitter:
                     message=f"Polling error: {e}",
                 ),
             )
-            self._pending_submissions[submission_id]["final_submission"] = error_submission
+            self._pending_submissions[submission_id][
+                "final_submission"
+            ] = error_submission
         finally:
             self._background_tasks.pop(submission_id, None)
 
@@ -214,7 +216,12 @@ class SolutionSubmitter:
         return self._pending_submissions.get(submission_id)
 
     async def _poll_for_verdict(
-        self, client, result_url: str, problem_id: str, language: str, submission_id: str
+        self,
+        client,
+        result_url: str,
+        problem_id: str,
+        language: str,
+        submission_id: str,
     ) -> Submission:
         """Poll CSES for final verdict until terminal state or timeout."""
         import logging
@@ -271,7 +278,9 @@ class SolutionSubmitter:
                     verdict=SubmissionVerdict(status=f"HTTP {response.status_code}"),
                 )
             response.raise_for_status()
-            submission = await self._parse_submission(response.text, problem_id, language)
+            submission = await self._parse_submission(
+                response.text, problem_id, language
+            )
             submission.id = submission_id
             return submission
         except Exception as e:

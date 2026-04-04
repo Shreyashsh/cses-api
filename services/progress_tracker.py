@@ -91,7 +91,11 @@ class ProgressTracker:
                 row = cursor.fetchone()
                 if row:
                     solved = json.loads(row[0]) if row[0] else []
-                    last_updated = datetime.fromisoformat(row[1]) if row[1] else datetime.now(timezone.utc)
+                    last_updated = (
+                        datetime.fromisoformat(row[1])
+                        if row[1]
+                        else datetime.now(timezone.utc)
+                    )
                     progress = Progress(
                         user_id=user_id,
                         solved=solved,
@@ -172,7 +176,11 @@ class ProgressTracker:
                     INSERT OR REPLACE INTO user_progress (user_id, solved_problems, last_updated)
                     VALUES (?, ?, ?)
                     """,
-                    (user_id, json.dumps(progress.solved), progress.last_updated.isoformat()),
+                    (
+                        user_id,
+                        json.dumps(progress.solved),
+                        progress.last_updated.isoformat(),
+                    ),
                 )
                 conn.commit()
 
@@ -190,14 +198,34 @@ class ProgressTracker:
                     return None
 
                 solved = json.loads(row[0]) if row[0] else []
-                last_updated = datetime.fromisoformat(row[1]) if row[1] else datetime.now(timezone.utc)
+                last_updated = (
+                    datetime.fromisoformat(row[1])
+                    if row[1]
+                    else datetime.now(timezone.utc)
+                )
 
                 # Load recent submissions
                 cursor = conn.execute(
                     "SELECT id, problem_id, language, verdict, submitted_at FROM submissions WHERE user_id = ? ORDER BY submitted_at DESC LIMIT 10",
                     (user_id,),
                 )
-                submissions = [self._dict_to_submission(dict(zip(["id", "problem_id", "language", "verdict", "submitted_at"], row))) for row in cursor.fetchall()]
+                submissions = [
+                    self._dict_to_submission(
+                        dict(
+                            zip(
+                                [
+                                    "id",
+                                    "problem_id",
+                                    "language",
+                                    "verdict",
+                                    "submitted_at",
+                                ],
+                                row,
+                            )
+                        )
+                    )
+                    for row in cursor.fetchall()
+                ]
                 submissions.reverse()  # Oldest first
 
                 return UserProgress(
@@ -234,5 +262,12 @@ class ProgressTracker:
             )
             row = cursor.fetchone()
             if row:
-                return self._dict_to_submission(dict(zip(["id", "problem_id", "language", "verdict", "submitted_at"], row)))
+                return self._dict_to_submission(
+                    dict(
+                        zip(
+                            ["id", "problem_id", "language", "verdict", "submitted_at"],
+                            row,
+                        )
+                    )
+                )
         return None

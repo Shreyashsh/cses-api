@@ -1,6 +1,6 @@
+import gc
 import os
 import tempfile
-import gc
 
 import httpx
 import pytest

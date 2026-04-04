@@ -14,7 +14,9 @@ logger = logging.getLogger("cses_api.session_manager")
 class SessionManager:
     """Manages CSES session cookies per user with SQLite persistence."""
 
-    def __init__(self, base_url: str = "https://cses.fi", db_path: str = "data/sessions.db"):
+    def __init__(
+        self, base_url: str = "https://cses.fi", db_path: str = "data/sessions.db"
+    ):
         self.base_url = base_url
         self.sessions: Dict[str, httpx.AsyncClient] = {}
         self.session_expiry: Dict[str, datetime] = {}
@@ -48,7 +50,9 @@ class SessionManager:
             conn.execute("DELETE FROM sessions WHERE expires_at < ?", (now,))
             conn.commit()
 
-    def _save_session_to_db(self, user_id: str, cookie_data: str, expires_at: datetime) -> None:
+    def _save_session_to_db(
+        self, user_id: str, cookie_data: str, expires_at: datetime
+    ) -> None:
         """Persist session cookies to SQLite."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
