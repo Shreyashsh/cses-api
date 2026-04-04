@@ -14,12 +14,11 @@ from fastapi.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-
 class UnicodeJSONResponse(Response):
     """JSON response that preserves Unicode characters instead of escaping them."""
 
     media_type = "application/json"
-
+    
     def render(self, content: Any) -> bytes:
         return json.dumps(
             content,
