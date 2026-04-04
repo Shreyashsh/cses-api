@@ -72,8 +72,9 @@ async def test_list_categories_error(client, mock_services):
 async def test_list_problems_in_category_success(client, mock_services):
     """Should return problems when fetch succeeds."""
     _, mock_problem_fetcher = mock_services
+    # Match ProblemSummary model structure: id, title
     mock_problems = [
-        {"id": "apio", "name": "APIO 2008"},
+        {"id": "apio", "title": "APIO 2008"},
     ]
     mock_problem_fetcher.fetch_category_problems.return_value = mock_problems
 
@@ -83,6 +84,8 @@ async def test_list_problems_in_category_success(client, mock_services):
     data = response.json()
     assert data["category"] == "intro"
     assert len(data["problems"]) == 1
+    assert data["problems"][0]["id"] == "apio"
+    assert data["problems"][0]["title"] == "APIO 2008"
 
 
 @pytest.mark.asyncio
