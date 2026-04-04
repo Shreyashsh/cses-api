@@ -15,8 +15,8 @@ router = APIRouter(prefix="/progress", tags=["Progress"])
 
 _progress_tracker = None
 
-# Submission IDs follow pattern: {problem_id}_{timestamp}_{uuid_hex}
-SUBMISSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
+# Submission IDs follow pattern: {problem_id}_{timestamp}.{microseconds}_{uuid_hex}
+SUBMISSION_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_.\-]{1,128}$")
 
 
 def set_progress_tracker(tracker):
