@@ -4,25 +4,29 @@ import os
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import Response
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
-# Patch JSON encoder to preserve Unicode
-_original_json_dumps = json.dumps
+class UnicodeJSONResponse(Response):
+    """JSON response that preserves Unicode characters instead of escaping them."""
 
-
-def _utf8_json_dumps(*args, **kwargs):
-    kwargs.setdefault("ensure_ascii", False)
-    return _original_json_dumps(*args, **kwargs)
-
-
-json.dumps = _utf8_json_dumps
+    media_type = "application/json"
+    
+    def render(self, content: Any) -> bytes:
+        return json.dumps(
+            content,
+            ensure_ascii=False,
+            allow_nan=False,
+            indent=None,
+            separators=(",", ":"),
+        ).encode("utf-8")
 
 from limiter import limiter
 from routers import auth, problems, progress, submissions
@@ -75,6 +79,7 @@ app = FastAPI(
     description="API for fetching CSES problems, submitting solutions, and tracking progress",
     version="0.1.0",
     lifespan=lifespan,
+    default_response_class=UnicodeJSONResponse,
 )
 
 app.state.limiter = limiter
@@ -148,4 +153,4 @@ async def health(request: Request):
         health_status["status"] = "degraded"
 
     status_code = 200 if health_status["status"] == "healthy" else 503
-    return JSONResponse(content=health_status, status_code=status_code)
+    return UnicodeJSONResponse(content=health_status, status_code=status_code)

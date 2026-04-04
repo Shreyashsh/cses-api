@@ -33,7 +33,7 @@ async def test_concurrent_submissions_thread_safe():
                 problem_id=f"problem_{i % 3}",
                 status="Accepted" if i % 2 == 0 else "Wrong Answer",
             )
-            await tracker.add_submission(user_id, submission)
+            await tracker.add_submission(user_id, submission)  # noqa: F821
 
         # Add 10 submissions concurrently
         await asyncio.gather(*[add_submission(i) for i in range(10)])
@@ -58,7 +58,7 @@ async def test_no_duplicate_solved_problems():
 
         async def add_accepted(problem_id):
             submission = create_submission(problem_id=problem_id, status="Accepted")
-            await tracker.add_submission(user_id, submission)
+            await tracker.add_submission(user_id, submission)  # noqa: F821
 
         # Add same problem 5 times concurrently
         await asyncio.gather(*[add_accepted("problem_1") for _ in range(5)])
