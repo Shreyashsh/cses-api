@@ -62,6 +62,7 @@ curl "http://127.0.0.1:8000/progress?user_id=your_username"
 | `/health` | GET | Health check |
 
 Rate limit: 30 requests/minute per client.
+Hosted on: https://cses-api.onrender.com/
 
 ## Tests
 
