@@ -57,7 +57,7 @@ class ProblemFetcher:
         fd, tmp_path = tempfile.mkstemp(dir=self.cache_dir, suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, default=str)
+                json.dump(data, f, indent=2, default=str, ensure_ascii=False)
             os.replace(tmp_path, cache_path)
         except Exception:
             os.unlink(tmp_path)
@@ -297,7 +297,7 @@ class ProblemFetcher:
         fd, tmp_path = tempfile.mkstemp(dir=self.cache_dir, suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, default=str)
+                json.dump(data, f, indent=2, default=str, ensure_ascii=False)
             os.replace(tmp_path, cache_path)
         except Exception:
             os.unlink(tmp_path)
@@ -366,7 +366,7 @@ class ProblemFetcher:
         fd, tmp_path = tempfile.mkstemp(dir=self.cache_dir, suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2, default=str)
+                json.dump(data, f, indent=2, default=str, ensure_ascii=False)
             os.replace(tmp_path, cache_path)
         except Exception:
             os.unlink(tmp_path)
