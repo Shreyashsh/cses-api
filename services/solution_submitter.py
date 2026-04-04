@@ -19,7 +19,6 @@ TERMINAL_VERDICTS = {
     "memory limit exceeded",
     "presentation error",
     "ready",  # CSES shows READY when judging is complete
-    "testing",  # Initial state
 }
 
 
@@ -51,6 +50,9 @@ class SolutionSubmitter:
             "scala": "Scala",
             "assembly": "Assembly",
         }
+        # Background tasks for polling
+        self._pending_submissions: dict[str, dict] = {}
+        self._background_tasks: dict[str, asyncio.Task] = {}
 
     def _generate_submission_id(self, problem_id: str) -> str:
         """Generate unique submission ID."""
@@ -63,8 +65,10 @@ class SolutionSubmitter:
         file_content: bytes,
         filename: str,
         language: str = "python3",
+        progress_tracker=None,
+        user_id: str = None,
     ) -> Submission:
-        """Submit solution file to CSES with retry logic."""
+        """Submit solution file to CSES with retry logic. Returns immediately with pending status."""
         # First get the submit page for CSRF token
         submit_page_url = f"/problemset/submit/{problem_id}"
 
@@ -105,18 +109,25 @@ class SolutionSubmitter:
             files=files,
         )
 
-        # The response should be a redirect to the result page
+        # Generate submission ID upfront
+        submission_id = self._generate_submission_id(problem_id)
+
+        # Parse the response to get initial submission info
         if submit_response.status_code not in (301, 302, 303, 307, 308):
-            return await self._parse_submission(
+            submission = await self._parse_submission(
                 submit_response.text, problem_id, language
             )
+            submission.id = submission_id
+            return submission
 
         # Get the redirect location
         location = submit_response.headers.get("location", "")
         if not location:
-            return await self._parse_submission(
+            submission = await self._parse_submission(
                 submit_response.text, problem_id, language
             )
+            submission.id = submission_id
+            return submission
 
         # Convert to relative if absolute
         if location.startswith("http"):
@@ -124,17 +135,86 @@ class SolutionSubmitter:
 
             location = urlparse(location).path
 
-        # Wait briefly for CSES to process, then poll the result page
-        await asyncio.sleep(2)
-
-        submission = await self._poll_for_verdict(
-            client, location, problem_id, language
+        # Create a pending submission record
+        submission = Submission(
+            id=submission_id,
+            problem_id=problem_id,
+            language=language,
+            verdict=SubmissionVerdict(
+                status="Pending",
+                message="Submission received. Judging in progress.",
+            ),
         )
+
+        # Store pending submission info for background polling
+        self._pending_submissions[submission_id] = {
+            "client": client,
+            "result_url": location,
+            "problem_id": problem_id,
+            "language": language,
+            "progress_tracker": progress_tracker,
+            "user_id": user_id,
+        }
+
+        # Start background polling task
+        task = asyncio.create_task(
+            self._background_poll_submission(submission_id)
+        )
+        self._background_tasks[submission_id] = task
 
         return submission
 
+    async def _background_poll_submission(self, submission_id: str) -> None:
+        """Background task to poll for final verdict and update progress tracker."""
+        import logging
+
+        logger = logging.getLogger("cses_api.submitter")
+        pending = self._pending_submissions.get(submission_id)
+        if not pending:
+            return
+
+        client = pending["client"]
+        result_url = pending["result_url"]
+        problem_id = pending["problem_id"]
+        language = pending["language"]
+        progress_tracker = pending.get("progress_tracker")
+        user_id = pending.get("user_id")
+
+        try:
+            final_submission = await self._poll_for_verdict(
+                client, result_url, problem_id, language, submission_id
+            )
+
+            # Update progress tracker with final verdict
+            if progress_tracker and user_id:
+                await progress_tracker.add_submission(user_id, final_submission)
+                logger.info(
+                    f"Background polling complete for {submission_id}: {final_submission.verdict.status}"
+                )
+
+            # Update pending record
+            self._pending_submissions[submission_id]["final_submission"] = final_submission
+        except Exception as e:
+            logger.error(f"Background polling failed for {submission_id}: {e}")
+            error_submission = Submission(
+                id=submission_id,
+                problem_id=problem_id,
+                language=language,
+                verdict=SubmissionVerdict(
+                    status="Error",
+                    message=f"Polling error: {e}",
+                ),
+            )
+            self._pending_submissions[submission_id]["final_submission"] = error_submission
+        finally:
+            self._background_tasks.pop(submission_id, None)
+
+    def get_pending_submission(self, submission_id: str) -> Optional[dict]:
+        """Get pending submission info by ID."""
+        return self._pending_submissions.get(submission_id)
+
     async def _poll_for_verdict(
-        self, client, result_url: str, problem_id: str, language: str
+        self, client, result_url: str, problem_id: str, language: str, submission_id: str
     ) -> Submission:
         """Poll CSES for final verdict until terminal state or timeout."""
         import logging
@@ -149,7 +229,7 @@ class SolutionSubmitter:
             elapsed = loop.time() - start_time
             if elapsed >= self.poll_timeout:
                 return Submission(
-                    id=self._generate_submission_id(problem_id),
+                    id=submission_id,
                     problem_id=problem_id,
                     language=language,
                     verdict=SubmissionVerdict(
@@ -159,7 +239,7 @@ class SolutionSubmitter:
                 )
 
             submission = await self._parse_submission_from_url(
-                client, result_url, problem_id, language
+                client, result_url, problem_id, language, submission_id
             )
             poll_count += 1
             last_status = submission.verdict.status
@@ -172,7 +252,7 @@ class SolutionSubmitter:
             await asyncio.sleep(self.poll_interval)
 
     async def _parse_submission_from_url(
-        self, client, url: str, problem_id: str, language: str
+        self, client, url: str, problem_id: str, language: str, submission_id: str
     ) -> Submission:
         """Fetch and parse submission result from a URL."""
         try:
@@ -185,20 +265,22 @@ class SolutionSubmitter:
                     f"Failed to fetch result URL {url}: status {response.status_code}"
                 )
                 return Submission(
-                    id=self._generate_submission_id(problem_id),
+                    id=submission_id,
                     problem_id=problem_id,
                     language=language,
                     verdict=SubmissionVerdict(status=f"HTTP {response.status_code}"),
                 )
             response.raise_for_status()
-            return await self._parse_submission(response.text, problem_id, language)
+            submission = await self._parse_submission(response.text, problem_id, language)
+            submission.id = submission_id
+            return submission
         except Exception as e:
             import logging
 
             logger = logging.getLogger("cses_api.submitter")
             logger.warning(f"Error fetching result URL {url}: {e}")
             return Submission(
-                id=self._generate_submission_id(problem_id),
+                id=submission_id,
                 problem_id=problem_id,
                 language=language,
                 verdict=SubmissionVerdict(status=f"Error: {e}"),

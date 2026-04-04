@@ -25,10 +25,6 @@ logger = logging.getLogger("cses_api.submissions")
 
 router = APIRouter(prefix="/problems", tags=["Submissions"])
 
-_session_manager = None
-_solution_submitter = None
-_progress_tracker = None
-
 MAX_FILE_SIZE = 1024 * 1024  # 1MB
 ALLOWED_EXTENSIONS = {
     ".py",
@@ -47,23 +43,32 @@ ALLOWED_EXTENSIONS = {
 PROBLEM_ID_PATTERN = re.compile(r"^\d{1,10}$")
 
 
-def set_services(manager, submitter, tracker):
-    global _session_manager, _solution_submitter, _progress_tracker
-    _session_manager = manager
-    _solution_submitter = submitter
-    _progress_tracker = tracker
+def get_session_manager(request: Request):
+    """Get session manager from app state."""
+    return request.app.state.session_manager
+
+
+def get_solution_submitter(request: Request):
+    """Get solution submitter from app state."""
+    return request.app.state.solution_submitter
+
+
+def get_progress_tracker(request: Request):
+    """Get progress tracker from app state."""
+    return request.app.state.progress_tracker
 
 
 def get_client_and_user(
     params: UserIdParam = Depends(validate_user_id),
+    session_manager=Depends(get_session_manager),
 ) -> httpx.AsyncClient:
-    if not _session_manager:
+    if not session_manager:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Session manager not initialized",
         )
 
-    client = _session_manager.get_session(params.user_id)
+    client = session_manager.get_session(params.user_id)
     if not client:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -82,6 +87,8 @@ async def submit_solution(
     language: str = Form("python3"),
     file: Optional[UploadFile] = File(None),
     client=Depends(get_client_and_user),
+    solution_submitter=Depends(get_solution_submitter),
+    progress_tracker=Depends(get_progress_tracker),
 ):
     """Submit solution file to CSES."""
     if not PROBLEM_ID_PATTERN.match(problem_id):
@@ -116,16 +123,18 @@ async def submit_solution(
                 detail=f"Unsupported file type. Allowed extensions: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
             )
 
-        submission = await _solution_submitter.submit_file(
+        submission = await solution_submitter.submit_file(
             client=client,
             problem_id=problem_id,
             file_content=file_content,
             filename=filename,
             language=language,
+            progress_tracker=progress_tracker,
+            user_id=params.user_id,
         )
 
-        await _progress_tracker.add_submission(params.user_id, submission)
-        logger.info(f"Submission successful for problem {problem_id}: {submission.id}")
+        # Note: add_submission is now handled by the background polling task
+        logger.info(f"Submission queued for problem {problem_id}: {submission.id}")
 
         return submission
     except Exception as e:

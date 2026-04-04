@@ -13,27 +13,31 @@ logger = logging.getLogger("cses_api.problems")
 
 router = APIRouter(prefix="/problems", tags=["Problems"])
 
-_session_manager = None
-_problem_fetcher = None
-
 # Validate category: alphanumeric with hyphens, no path traversal
 CATEGORY_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9\-_]*$")
 
 
-def set_services(manager, fetcher):
-    global _session_manager, _problem_fetcher
-    _session_manager = manager
-    _problem_fetcher = fetcher
+def get_session_manager(request: Request):
+    """Get session manager from app state."""
+    return request.app.state.session_manager
 
 
-def get_client(params: UserIdParam = Depends(validate_user_id)) -> httpx.AsyncClient:
-    if not _session_manager:
+def get_problem_fetcher(request: Request):
+    """Get problem fetcher from app state."""
+    return request.app.state.problem_fetcher
+
+
+def get_client(
+    params: UserIdParam = Depends(validate_user_id),
+    session_manager=Depends(get_session_manager),
+) -> httpx.AsyncClient:
+    if not session_manager:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Session manager not initialized",
         )
 
-    client = _session_manager.get_session(params.user_id)
+    client = session_manager.get_session(params.user_id)
     if not client:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,11 +49,15 @@ def get_client(params: UserIdParam = Depends(validate_user_id)) -> httpx.AsyncCl
 
 @router.get("", response_model=List[ProblemCategory])
 @limiter.limit("30/minute")
-async def list_categories(request: Request, client=Depends(get_client)):
+async def list_categories(
+    request: Request,
+    client=Depends(get_client),
+    problem_fetcher=Depends(get_problem_fetcher),
+):
     """List all problem categories."""
     logger.info("Fetching categories")
     try:
-        categories = await _problem_fetcher.fetch_categories(client)
+        categories = await problem_fetcher.fetch_categories(client)
         logger.info(f"Fetched {len(categories)} categories")
         return categories
     except Exception as e:
@@ -66,6 +74,7 @@ async def list_problems(
     request: Request,
     category: str = Path(..., min_length=1, max_length=100),
     client=Depends(get_client),
+    problem_fetcher=Depends(get_problem_fetcher),
 ):
     """List all problems in a category."""
     if not CATEGORY_PATTERN.match(category):
@@ -75,7 +84,7 @@ async def list_problems(
         )
     logger.info(f"Fetching problems for category: {category}")
     try:
-        problems = await _problem_fetcher.fetch_category_problems(client, category)
+        problems = await problem_fetcher.fetch_category_problems(client, category)
         logger.info(f"Fetched {len(problems)} problems for category: {category}")
         return ProblemList(category=category, problems=problems)
     except Exception as e:
@@ -93,6 +102,7 @@ async def get_problem(
     category: str = Path(..., min_length=1, max_length=100),
     problem_id: str = Path(..., min_length=1, max_length=100),
     client=Depends(get_client),
+    problem_fetcher=Depends(get_problem_fetcher),
 ):
     """Fetch problem details (cached)."""
     if not CATEGORY_PATTERN.match(category):
@@ -102,7 +112,7 @@ async def get_problem(
         )
     logger.info(f"Fetching problem {problem_id} in category: {category}")
     try:
-        problem = await _problem_fetcher.fetch_problem(client, problem_id, category)
+        problem = await problem_fetcher.fetch_problem(client, problem_id, category)
         logger.info(f"Fetched problem: {problem_id}")
         return problem
     except Exception as e:

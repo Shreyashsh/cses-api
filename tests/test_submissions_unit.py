@@ -10,7 +10,7 @@ from main import app
 
 @pytest.fixture
 def mock_services():
-    """Mock all service dependencies."""
+    """Mock all service dependencies via app.state."""
     # Create mock session manager
     mock_session_manager = MagicMock()
     mock_client = MagicMock()
@@ -24,11 +24,17 @@ def mock_services():
     mock_progress_tracker = MagicMock()
     mock_progress_tracker.add_submission = AsyncMock()
 
-    # Patch all services
-    with patch("routers.submissions._session_manager", mock_session_manager):
-        with patch("routers.submissions._solution_submitter", mock_solution_submitter):
-            with patch("routers.submissions._progress_tracker", mock_progress_tracker):
-                yield mock_session_manager, mock_solution_submitter, mock_progress_tracker
+    # Patch all services on app.state
+    app.state.session_manager = mock_session_manager
+    app.state.solution_submitter = mock_solution_submitter
+    app.state.progress_tracker = mock_progress_tracker
+
+    yield mock_session_manager, mock_solution_submitter, mock_progress_tracker
+
+    # Cleanup
+    app.state.session_manager = None
+    app.state.solution_submitter = None
+    app.state.progress_tracker = None
 
 
 @pytest.fixture
